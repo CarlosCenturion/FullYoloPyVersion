@@ -1,0 +1,23 @@
+# Core FastAPI dependencies
+fastapi
+uvicorn
+pydantic
+python-multipart
+
+# YOLO and Computer Vision
+ultralytics
+opencv-python
+pillow
+numpy
+
+# Additional utilities
+aiofiles
+python-dotenv
+
+# Development and testing
+pytest
+pytest-asyncio
+httpx
+
+# Logging and monitoring
+loguru
