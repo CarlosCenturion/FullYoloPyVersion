@@ -2,9 +2,23 @@
 
 ## Documento de Planificación de Features
 
-**Versión:** 1.0  
-**Fecha:** 2 de Noviembre, 2025  
+**Versión:** 1.1
+**Fecha de Creación:** 2 de Noviembre, 2025
+**Última Actualización:** 2 de Noviembre, 2025
 **Proyecto:** YOLO Object Detection Explorer by Centurion Carlos
+
+---
+
+## 📊 Estado de Implementación
+
+### Features Completadas: 1
+- ✅ **3.2 - Configuración Avanzada de Modelos** (Completado: 2 Nov 2025)
+
+### Features En Progreso: 0
+
+### Features Planificadas: 29
+
+**Progreso Total:** 3.4% (1/30 features)
 
 ---
 
@@ -257,25 +271,29 @@ Mejora la experiencia de usuario y accesibilidad.
 ---
 
 ### 3.2 ⚙️ Configuración Avanzada de Modelos
-**Prioridad:** Alta | **Complejidad:** Media
+**Prioridad:** Alta | **Complejidad:** Media | **✅ COMPLETADO - 2 Nov 2025**
 
-**Descripción:**  
+**Descripción:**
 Control granular sobre parámetros de detección YOLO.
 
-**Características:**
-- Ajuste de confidence threshold (umbral de confianza)
-- IOU threshold para Non-Max Suppression
-- Tamaño de entrada del modelo
-- Filtros de clases específicas
-- Presets guardados por caso de uso
+**Características IMPLEMENTADAS:**
+- ✅ Ajuste de confidence threshold (umbral de confianza)
+- ✅ IOU threshold para Non-Max Suppression
+- ✅ Tamaño de entrada del modelo (320/640/1280px)
+- ✅ Control de máximo de detecciones
+- ✅ Presets guardados (4 predefinidos + custom)
+- ✅ Persistencia en LocalStorage
+- ⏳ Filtros de clases específicas (pendiente para v2)
 
-**Valor de Negocio:**  
-Usuarios avanzados pueden optimizar detecciones para casos específicos.
+**Valor de Negocio:**
+Usuarios avanzados pueden optimizar detecciones para casos específicos. ✅ **ENTREGADO**
 
-**Stack Técnico:**
-- Frontend: Panel de configuración con sliders y inputs
-- Backend: Pasar parámetros a Ultralytics YOLO
-- Profiles guardados en base de datos
+**Stack Técnico IMPLEMENTADO:**
+- ✅ Frontend: Panel de configuración expandible con sliders y botones
+- ✅ Backend: Parámetros dinámicos pasados a Ultralytics YOLO
+- ✅ Presets guardados en LocalStorage (no requiere DB)
+
+**Documentación:** Ver `docs/advanced-config-feature.md` para detalles completos de implementación.
 
 ---
 

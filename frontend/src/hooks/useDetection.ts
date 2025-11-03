@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Detection, DetectionResult } from '../types'
+import { Detection, DetectionResult, DetectionConfig } from '../types'
 import { detectionApi } from '../services/api'
 
 interface UseDetectionReturn {
@@ -10,8 +10,8 @@ interface UseDetectionReturn {
   resultImageUrl: string | null
   resultVideoUrl: string | null
   isVideoReady: boolean
-  processImage: (file: File, model: string) => Promise<void>
-  processVideo: (file: File, model: string) => Promise<void>
+  processImage: (file: File, model: string, config?: DetectionConfig) => Promise<void>
+  processVideo: (file: File, model: string, config?: DetectionConfig) => Promise<void>
   clearResults: () => void
 }
 
@@ -33,12 +33,12 @@ export const useDetection = (): UseDetectionReturn => {
     setIsVideoReady(false)
   }, [])
 
-  const processImage = useCallback(async (file: File, model: string) => {
+  const processImage = useCallback(async (file: File, model: string, config?: DetectionConfig) => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      const result: DetectionResult = await detectionApi.detectImage(file, model)
+      const result: DetectionResult = await detectionApi.detectImage(file, model, config)
 
       if (result.success) {
         setDetections(result.detections)
@@ -57,12 +57,12 @@ export const useDetection = (): UseDetectionReturn => {
     }
   }, [clearResults])
 
-  const processVideo = useCallback(async (file: File, model: string) => {
+  const processVideo = useCallback(async (file: File, model: string, config?: DetectionConfig) => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      const result: DetectionResult = await detectionApi.detectVideo(file, model)
+      const result: DetectionResult = await detectionApi.detectVideo(file, model, config)
 
       if (result.success) {
         setDetections([]) // Videos don't return per-frame detections

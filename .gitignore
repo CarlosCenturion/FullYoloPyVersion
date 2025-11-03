@@ -80,3 +80,4 @@ tmp/
 
 # Archive (keep this for backups)
 # archive/
+/backend/static

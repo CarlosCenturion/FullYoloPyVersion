@@ -1,16 +1,27 @@
 import React from 'react'
-import { Camera, Upload, Play, Settings } from 'lucide-react'
+import { Camera, Upload } from 'lucide-react'
 import ModelSelector from './components/ModelSelector'
 import WebcamStream from './components/WebcamStream'
 import FileUpload from './components/FileUpload'
 import DetectionResult from './components/DetectionResult'
+import AdvancedConfig from './components/AdvancedConfig'
 import { useDetection } from './hooks/useDetection'
+import { DetectionConfig } from './types'
 
 type TabType = 'webcam' | 'upload'
+
+// Default configuration
+const DEFAULT_CONFIG: DetectionConfig = {
+  confidence: 0.25,
+  iou: 0.45,
+  maxDetections: 300,
+  imageSize: 640,
+}
 
 function App() {
   const [activeTab, setActiveTab] = React.useState<TabType>('webcam')
   const [selectedModel, setSelectedModel] = React.useState('yolov8n')
+  const [detectionConfig, setDetectionConfig] = React.useState<DetectionConfig>(DEFAULT_CONFIG)
 
   const {
     detections,
@@ -33,6 +44,18 @@ function App() {
   const handleTabChange = (tab: TabType) => {
     setActiveTab(tab)
     clearResults()
+  }
+
+  const handleConfigChange = (config: DetectionConfig) => {
+    setDetectionConfig(config)
+  }
+
+  const handleProcessImage = async (file: File, model: string) => {
+    await processImage(file, model, detectionConfig)
+  }
+
+  const handleProcessVideo = async (file: File, model: string) => {
+    await processVideo(file, model, detectionConfig)
   }
 
   return (
@@ -87,13 +110,13 @@ function App() {
               {activeTab === 'webcam' ? (
                 <WebcamStream
                   selectedModel={selectedModel}
-                  onDetection={processImage}
+                  onDetection={handleProcessImage}
                   isProcessing={isProcessing}
                 />
               ) : (
                 <FileUpload
-                  onImageUpload={processImage}
-                  onVideoUpload={processVideo}
+                  onImageUpload={handleProcessImage}
+                  onVideoUpload={handleProcessVideo}
                   selectedModel={selectedModel}
                   isProcessing={isProcessing}
                 />
@@ -120,6 +143,15 @@ function App() {
           <ModelSelector
             selectedModel={selectedModel}
             onModelChange={handleModelChange}
+          />
+        </div>
+
+         {/* Advanced Configuration */}
+         <div className="mb-8">
+          <AdvancedConfig
+            config={detectionConfig}
+            onConfigChange={handleConfigChange}
+            isProcessing={isProcessing}
           />
         </div>
 

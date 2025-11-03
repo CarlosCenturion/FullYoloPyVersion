@@ -30,3 +30,18 @@ export interface ApiError {
 }
 
 export type ProcessingStatus = 'idle' | 'processing' | 'completed' | 'error'
+
+export interface DetectionConfig {
+  confidence: number          // Confidence threshold (0.0 - 1.0)
+  iou: number                // IOU threshold for NMS (0.0 - 1.0)
+  maxDetections: number      // Maximum number of detections
+  imageSize: number          // Input image size (320, 640, 1280)
+  classes?: number[]         // Filter specific classes
+}
+
+export interface DetectionPreset {
+  id: string
+  name: string
+  description: string
+  config: DetectionConfig
+}

@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios'
-import { ModelInfo, DetectionResult, ApiError } from '../types'
+import { ModelInfo, DetectionResult, ApiError, DetectionConfig } from '../types'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -48,10 +48,18 @@ export const detectionApi = {
   },
 
   // Detect objects in image
-  detectImage: async (file: File, model: string): Promise<DetectionResult> => {
+  detectImage: async (file: File, model: string, config?: DetectionConfig): Promise<DetectionResult> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('model', model)
+
+    // Add config parameters if provided
+    if (config) {
+      formData.append('confidence', config.confidence.toString())
+      formData.append('iou', config.iou.toString())
+      formData.append('max_det', config.maxDetections.toString())
+      formData.append('imgsz', config.imageSize.toString())
+    }
 
     const response: AxiosResponse<DetectionResult> = await api.post(
       '/api/detect/image',
@@ -66,10 +74,18 @@ export const detectionApi = {
   },
 
   // Detect objects in video
-  detectVideo: async (file: File, model: string): Promise<DetectionResult> => {
+  detectVideo: async (file: File, model: string, config?: DetectionConfig): Promise<DetectionResult> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('model', model)
+
+    // Add config parameters if provided
+    if (config) {
+      formData.append('confidence', config.confidence.toString())
+      formData.append('iou', config.iou.toString())
+      formData.append('max_det', config.maxDetections.toString())
+      formData.append('imgsz', config.imageSize.toString())
+    }
 
     const response: AxiosResponse<DetectionResult> = await api.post(
       '/api/detect/video',

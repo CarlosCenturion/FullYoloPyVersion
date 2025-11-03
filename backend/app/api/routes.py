@@ -43,7 +43,11 @@ async def get_available_models():
 @router.post("/detect/image")
 async def detect_objects_in_image(
     file: UploadFile = File(...),
-    model: str = Form(..., description="YOLO model to use (yolov8n, yolov8s, yolov8m, yolov8l)")
+    model: str = Form(..., description="YOLO model to use (yolov8n, yolov8s, yolov8m, yolov8l)"),
+    confidence: float = Form(None, description="Confidence threshold (0.0-1.0)"),
+    iou: float = Form(None, description="IOU threshold for NMS (0.0-1.0)"),
+    max_det: int = Form(None, description="Maximum number of detections"),
+    imgsz: int = Form(None, description="Input image size (320, 640, 1280)")
 ):
     """Detect objects in an uploaded image."""
     start_time = time.time()
@@ -56,29 +60,44 @@ async def detect_objects_in_image(
         if model not in settings.available_models:
             raise HTTPException(status_code=400, detail=f"Invalid model: {model}")
 
-        logger.info(f"Processing image with model {model}: {file.filename}")
+        # Build detection config
+        detection_config = {}
+        if confidence is not None:
+            detection_config['conf'] = confidence
+        if iou is not None:
+            detection_config['iou'] = iou
+        if max_det is not None:
+            detection_config['max_det'] = max_det
+        if imgsz is not None:
+            detection_config['imgsz'] = imgsz
+
+        logger.info(f"Processing image with model {model}: {file.filename} - Config: {detection_config}")
 
         # Process image
-        result = await detection_service.process_image(file, model)
+        result = await detection_service.process_image(file, model, detection_config)
 
         processing_time = time.time() - start_time
         result["processing_time"] = processing_time
 
-        logger.info(".3f")
+        logger.info(f"Image processed in {processing_time:.3f}s")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
         processing_time = time.time() - start_time
-        logger.error(".3f")
+        logger.error(f"Image processing failed in {processing_time:.3f}s: {e}")
         raise HTTPException(status_code=500, detail=f"Image processing failed: {str(e)}")
 
 
 @router.post("/detect/video")
 async def detect_objects_in_video(
     file: UploadFile = File(...),
-    model: str = Form(..., description="YOLO model to use (yolov8n, yolov8s, yolov8m, yolov8l)")
+    model: str = Form(..., description="YOLO model to use (yolov8n, yolov8s, yolov8m, yolov8l)"),
+    confidence: float = Form(None, description="Confidence threshold (0.0-1.0)"),
+    iou: float = Form(None, description="IOU threshold for NMS (0.0-1.0)"),
+    max_det: int = Form(None, description="Maximum number of detections"),
+    imgsz: int = Form(None, description="Input image size (320, 640, 1280)")
 ):
     """Detect objects in an uploaded video."""
     start_time = time.time()
@@ -91,22 +110,33 @@ async def detect_objects_in_video(
         if model not in settings.available_models:
             raise HTTPException(status_code=400, detail=f"Invalid model: {model}")
 
-        logger.info(f"Processing video with model {model}: {file.filename}")
+        # Build detection config
+        detection_config = {}
+        if confidence is not None:
+            detection_config['conf'] = confidence
+        if iou is not None:
+            detection_config['iou'] = iou
+        if max_det is not None:
+            detection_config['max_det'] = max_det
+        if imgsz is not None:
+            detection_config['imgsz'] = imgsz
+
+        logger.info(f"Processing video with model {model}: {file.filename} - Config: {detection_config}")
 
         # Process video
-        result = await detection_service.process_video(file, model)
+        result = await detection_service.process_video(file, model, detection_config)
 
         processing_time = time.time() - start_time
         result["processing_time"] = processing_time
 
-        logger.info(".3f")
+        logger.info(f"Video processed in {processing_time:.3f}s")
         return result
 
     except HTTPException:
         raise
     except Exception as e:
         processing_time = time.time() - start_time
-        logger.error(".3f")
+        logger.error(f"Video processing failed in {processing_time:.3f}s: {e}")
         raise HTTPException(status_code=500, detail=f"Video processing failed: {str(e)}")
 
 

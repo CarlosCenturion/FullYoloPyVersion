@@ -27,7 +27,7 @@ class DetectionService:
         """Ensure the static directory exists for storing results."""
         os.makedirs("static", exist_ok=True)
 
-    async def process_image(self, file: UploadFile, model_id: str) -> Dict[str, Any]:
+    async def process_image(self, file: UploadFile, model_id: str, detection_config: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process an image for object detection."""
 
         start_time = time.time()
@@ -46,8 +46,17 @@ class DetectionService:
             # Get model
             model = await self.model_manager.get_model(model_id)
 
+            # Prepare detection parameters
+            detect_params = {
+                'conf': settings.detection_confidence_threshold
+            }
+
+            # Override with custom config if provided
+            if detection_config:
+                detect_params.update(detection_config)
+
             # Perform detection
-            results = model(image_np, conf=settings.detection_confidence_threshold)
+            results = model(image_np, **detect_params)
 
             # Process results
             detections = self._process_detection_results(results)
@@ -75,7 +84,7 @@ class DetectionService:
             logger.error(f"Image processing failed: {e}")
             raise
 
-    async def process_video(self, file: UploadFile, model_id: str) -> Dict[str, Any]:
+    async def process_video(self, file: UploadFile, model_id: str, detection_config: Dict[str, Any] = None) -> Dict[str, Any]:
         """Process a video for object detection."""
 
         start_time = time.time()
@@ -92,7 +101,7 @@ class DetectionService:
 
             # Process video
             result_filename, total_frames = self._process_video_file(
-                temp_video_path, model, model_id
+                temp_video_path, model, model_id, detection_config
             )
 
             # Clean up temp file
@@ -116,7 +125,7 @@ class DetectionService:
                 os.remove(temp_video_path)
             raise
 
-    def _process_video_file(self, video_path: str, model, model_id: str) -> tuple[str, int]:
+    def _process_video_file(self, video_path: str, model, model_id: str, detection_config: Dict[str, Any] = None) -> tuple[str, int]:
         """Process video file and create annotated output."""
 
         cap = cv2.VideoCapture(video_path)
@@ -140,6 +149,15 @@ class DetectionService:
         if not out.isOpened():
             raise ValueError("Could not create output video file")
 
+        # Prepare detection parameters
+        detect_params = {
+            'conf': settings.detection_confidence_threshold
+        }
+
+        # Override with custom config if provided
+        if detection_config:
+            detect_params.update(detection_config)
+
         frame_count = 0
         processed_frames = 0
 
@@ -151,7 +169,7 @@ class DetectionService:
 
                 # Perform detection every 3 frames for performance
                 if frame_count % 3 == 0:
-                    results = model(frame, conf=settings.detection_confidence_threshold)
+                    results = model(frame, **detect_params)
                     detections = self._process_detection_results(results)
                     annotated_frame = self._draw_detections(frame.copy(), detections)
                     processed_frames += 1

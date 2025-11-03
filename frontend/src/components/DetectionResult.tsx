@@ -2,6 +2,175 @@ import React from 'react'
 import { Target, Clock, AlertCircle, CheckCircle, Play } from 'lucide-react'
 import { Detection } from '../types'
 
+// Emoji mapping for common YOLO objects
+const OBJECT_EMOJIS: { [key: string]: string } = {
+  // People & Body
+  'person': '👤',
+  'man': '👨',
+  'woman': '👩',
+  'child': '👶',
+  'baby': '👶',
+  'boy': '👦',
+  'girl': '👧',
+  'hand': '✋',
+  'foot': '🦶',
+  'face': '😊',
+
+  // Animals
+  'dog': '🐕',
+  'cat': '🐱',
+  'bird': '🐦',
+  'horse': '🐎',
+  'cow': '🐄',
+  'sheep': '🐑',
+  'elephant': '🐘',
+  'bear': '🐻',
+  'zebra': '🦓',
+  'giraffe': '🦒',
+  'fish': '🐟',
+  'turtle': '🐢',
+  'frog': '🐸',
+  'snake': '🐍',
+  'chicken': '🐔',
+  'duck': '🦆',
+  'owl': '🦉',
+
+  // Vehicles
+  'car': '🚗',
+  'truck': '🚚',
+  'bus': '🚌',
+  'motorcycle': '🏍️',
+  'bicycle': '🚴',
+  'train': '🚂',
+  'airplane': '✈️',
+  'boat': '⛵',
+  'ship': '🚢',
+
+  // Food & Kitchen
+  'apple': '🍎',
+  'orange': '🍊',
+  'banana': '🍌',
+  'broccoli': '🥦',
+  'carrot': '🥕',
+  'pizza': '🍕',
+  'cake': '🍰',
+  'sandwich': '🥪',
+  'hot dog': '🌭',
+  'hamburger': '🍔',
+  'fries': '🍟',
+  'donut': '🍩',
+  'cookie': '🍪',
+  'bread': '🍞',
+  'cheese': '🧀',
+  'wine': '🍷',
+  'beer': '🍺',
+
+  // Furniture & Household
+  'chair': '🪑',
+  'table': '🪑',
+  'bed': '🛏️',
+  'sofa': '🛋️',
+  'tv': '📺',
+  'laptop': '💻',
+  'mouse': '🖱️',
+  'keyboard': '⌨️',
+  'phone': '📱',
+  'book': '📖',
+  'clock': '🕐',
+  'vase': '🏺',
+  'scissors': '✂️',
+  'toothbrush': '🪥',
+  'spoon': '🥄',
+  'fork': '🍴',
+  'knife': '🔪',
+  'bowl': '🍜',
+  'cup': '☕',
+
+  // Sports & Recreation
+  'ball': '⚽',
+  'baseball': '⚾',
+  'basketball': '🏀',
+  'football': '🏈',
+  'tennis': '🎾',
+  'frisbee': '🥏',
+  'skateboard': '🛼',
+  'surfboard': '🏄',
+  'ski': '🎿',
+  'snowboard': '🏂',
+  'baseball bat': '🏏',
+  'baseball glove': '🧤',
+
+  // Nature & Outdoors
+  'tree': '🌳',
+  'flower': '🌸',
+  'grass': '🌱',
+  'mountain': '⛰️',
+  'ocean': '🌊',
+  'river': '🌊',
+  'beach': '🏖️',
+  'cloud': '☁️',
+  'sun': '☀️',
+  'moon': '🌙',
+  'star': '⭐',
+
+  // Buildings & Architecture
+  'house': '🏠',
+  'building': '🏢',
+  'bridge': '🌉',
+  'tower': '🗼',
+  'statue': '🗽',
+  'fountain': '⛲',
+  'church': '⛪',
+  'mosque': '🕌',
+  'synagogue': '🕍',
+  'temple': '🛕',
+
+  // Transportation Infrastructure
+  'traffic light': '🚦',
+  'stop sign': '🛑',
+  'parking meter': '🅿️',
+  'bench': '🪑',
+  'umbrella': '☂️',
+  'suitcase': '🧳',
+
+  // Generic Objects
+  'bottle': '🍾',
+  'glass': '🥃',
+  'plate': '🍽️',
+  'bowl': '🍜',
+  'remote': '📺',
+  'keyboard': '⌨️',
+  'cell phone': '📱',
+  'microwave': '🍳',
+  'oven': '🍳',
+  'toaster': '🍞',
+  'sink': '🚰',
+  'refrigerator': '🧊',
+  'potted plant': '🪴',
+  'teddy bear': '🧸',
+  'hair drier': '💇',
+  'toothbrush': '🪥'
+}
+
+// Function to get emoji for object class
+const getObjectEmoji = (objectClass: string): string => {
+  // Try exact match first
+  if (OBJECT_EMOJIS[objectClass.toLowerCase()]) {
+    return OBJECT_EMOJIS[objectClass.toLowerCase()]
+  }
+
+  // Try partial matches for compound names
+  const lowerClass = objectClass.toLowerCase()
+  for (const [key, emoji] of Object.entries(OBJECT_EMOJIS)) {
+    if (lowerClass.includes(key) || key.includes(lowerClass)) {
+      return emoji
+    }
+  }
+
+  // Default emoji for unknown objects
+  return '📦'
+}
+
 interface DetectionResultProps {
   detections: Detection[]
   processingTime: number | null
@@ -90,8 +259,11 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
                 key={index}
                 className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
               >
-                <div className="flex items-center">
-                  <Target className="w-4 h-4 text-primary-500 mr-3" />
+                <div className="inline-flex items-center">
+                  <div className="flex items-center mr-3">
+                    <span className="text-lg mr-1">{getObjectEmoji(detection.class)}</span>
+                    
+                  </div>
                   <div>
                     <span className="font-medium text-gray-900 capitalize">
                       {detection.class}
@@ -102,9 +274,7 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
                   </div>
                 </div>
 
-                <div className="text-xs text-gray-500 font-mono">
-                  [{detection.bbox.map(coord => coord.toFixed(0)).join(', ')}]
-                </div>
+                
               </div>
             ))}
           </div>
