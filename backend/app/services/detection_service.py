@@ -16,6 +16,7 @@ from app.models.schemas import (
     CreateGalleryItemRequest
 )
 from app.services.gallery_service import GalleryService
+from app.services.snapshot_service import SnapshotService
 from app.utils.logger import app_logger as logger
 from app.utils.file_validator import validate_image_dimensions
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,6 +29,7 @@ class DetectionService:
         """Initialize the detection service."""
         self.model_manager = model_manager
         self.gallery_service = GalleryService()
+        self.snapshot_service = SnapshotService()
         self._ensure_static_directory()
 
     def _ensure_static_directory(self):
@@ -40,7 +42,9 @@ class DetectionService:
         model_id: str,
         detection_config: Dict[str, Any] = None,
         gallery_request: CreateGalleryItemRequest = None,
-        db_session: AsyncSession = None
+        db_session: AsyncSession = None,
+        snapshot_enabled: bool = False,
+        snapshot_classes: List[str] = None
     ) -> Dict[str, Any]:
         """Process an image for object detection."""
 
@@ -75,6 +79,16 @@ class DetectionService:
             # Process results
             detections = self._process_detection_results(results)
 
+            # Create snapshots if enabled
+            snapshots = []
+            if snapshot_enabled:
+                snapshots = self.snapshot_service.create_snapshots(
+                    image_np=image_np,
+                    detections=detections,
+                    snapshot_classes=snapshot_classes,
+                    use_tracking=False,
+                )
+
             # Save result image with bounding boxes
             result_filename = f"result_{uuid.uuid4().hex}.jpg"
             result_path = os.path.join("static", result_filename)
@@ -92,7 +106,8 @@ class DetectionService:
                 "original_filename": file.filename,
                 "model_used": model_id,
                 "image_size": f"{image.width}x{image.height}",
-                "processing_time": processing_time
+                "processing_time": processing_time,
+                "snapshots": snapshots
             }
 
             # Save to gallery if requested
@@ -341,7 +356,9 @@ class DetectionService:
         self,
         file: UploadFile,
         model_id: str,
-        detection_config: Dict[str, Any] = None
+        detection_config: Dict[str, Any] = None,
+        snapshot_enabled: bool = False,
+        snapshot_classes: List[str] = None
     ) -> Dict[str, Any]:
         """Process an image frame with object tracking (ByteTrack).
 
@@ -374,13 +391,24 @@ class DetectionService:
             # Process results with track IDs
             detections = self._process_tracking_results(results)
 
+            # Create snapshots if enabled (tracking mode deduplicates by track_id)
+            snapshots = []
+            if snapshot_enabled:
+                snapshots = self.snapshot_service.create_snapshots(
+                    image_np=image_np,
+                    detections=detections,
+                    snapshot_classes=snapshot_classes,
+                    use_tracking=True,
+                )
+
             processing_time = time.time() - start_time
 
             return {
                 "success": True,
                 "detections": detections,
                 "model_used": model_id,
-                "processing_time": processing_time
+                "processing_time": processing_time,
+                "snapshots": snapshots
             }
 
         except Exception as e:
@@ -388,13 +416,14 @@ class DetectionService:
             raise
 
     async def reset_tracker(self, model_id: str):
-        """Reset the ByteTrack tracker state for a model."""
+        """Reset the ByteTrack tracker state and snapshot seen tracks for a model."""
         try:
             model = await self.model_manager.get_model(model_id)
             if hasattr(model, 'predictor') and model.predictor is not None:
                 if hasattr(model.predictor, 'trackers'):
                     model.predictor.trackers = []
                     logger.info(f"Tracker reset for model {model_id}")
+            self.snapshot_service.reset_seen_tracks()
         except Exception as e:
             logger.error(f"Failed to reset tracker for {model_id}: {e}")
             raise

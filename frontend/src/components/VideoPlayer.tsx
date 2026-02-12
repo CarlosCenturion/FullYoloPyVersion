@@ -1,11 +1,13 @@
 import React, { useRef, useState, useCallback, useEffect } from 'react'
 import { Upload, Play, Pause, Square, Video, X, AlertCircle, SkipBack, SkipForward, Eye, EyeOff, Hash, RotateCcw } from 'lucide-react'
 import { detectionApi } from '../services/api'
-import { Detection, DetectionConfig } from '../types'
+import { Detection, DetectionConfig, Snapshot, SnapshotConfig } from '../types'
+import SnapshotGallery from './SnapshotGallery'
 
 interface VideoPlayerProps {
   selectedModel: string
   detectionConfig: DetectionConfig
+  snapshotConfig: SnapshotConfig
 }
 
 const BOX_COLORS = [
@@ -40,6 +42,7 @@ const getEmoji = (cls: string): string => {
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
   selectedModel,
   detectionConfig,
+  snapshotConfig,
 }) => {
   const videoRef = useRef<HTMLVideoElement>(null)
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null)
@@ -70,6 +73,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   const [uniqueCounts, setUniqueCounts] = useState<Map<string, number>>(new Map())
   const [totalUniqueCount, setTotalUniqueCount] = useState(0)
   const seenTrackIdsRef = useRef<Map<string, Set<number>>>(new Map())
+  const [videoSnapshots, setVideoSnapshots] = useState<Snapshot[]>([])
+  const snapshotConfigRef = useRef(snapshotConfig)
 
   const videoTypes = ['video/mp4', 'video/avi', 'video/mov']
 
@@ -79,6 +84,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   useEffect(() => { trackingEnabledRef.current = trackingEnabled }, [trackingEnabled])
   useEffect(() => { selectedModelRef.current = selectedModel }, [selectedModel])
   useEffect(() => { detectionConfigRef.current = detectionConfig }, [detectionConfig])
+  useEffect(() => { snapshotConfigRef.current = snapshotConfig }, [snapshotConfig])
 
   const updateTrackingCounts = useCallback((detections: Detection[]) => {
     const seen = seenTrackIdsRef.current
@@ -198,17 +204,23 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const file = new File([blob], 'video-frame.jpg', { type: 'image/jpeg' })
         const model = selectedModelRef.current
         const config = detectionConfigRef.current
-        const result = trackingEnabledRef.current
-          ? await detectionApi.detectWithTracking(file, model, config)
-          : await detectionApi.detectImage(file, model, config)
+        const snapCfg = snapshotConfigRef.current
+        const useTracking = trackingEnabledRef.current || snapCfg.enabled
+        const result = useTracking
+          ? await detectionApi.detectWithTracking(file, model, config, snapCfg)
+          : await detectionApi.detectImage(file, model, config, undefined, snapCfg)
 
         if (result.success) {
           setCurrentDetections(result.detections)
           setProcessingTime(result.processing_time)
           setFramesProcessed(prev => prev + 1)
 
-          if (trackingEnabledRef.current) {
+          if (useTracking) {
             updateTrackingCounts(result.detections)
+          }
+
+          if (result.snapshots && result.snapshots.length > 0) {
+            setVideoSnapshots(prev => [...result.snapshots!, ...prev])
           }
 
           const newClasses = result.detections.map(d => d.class)
@@ -329,6 +341,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     }
   }, [])
 
+  const clearVideoSnapshots = useCallback(() => {
+    setVideoSnapshots([])
+    detectionApi.clearSnapshots().catch(console.error)
+  }, [])
+
   const stopDetection = useCallback(() => {
     if (intervalRef.current) {
       clearInterval(intervalRef.current)
@@ -359,6 +376,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setProcessingTime(null)
     setDiscoveredClasses(new Set())
     setDisabledClasses(new Set())
+    setVideoSnapshots([])
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
@@ -738,6 +756,14 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
             </div>
           )}
         </>
+      )}
+
+      {/* Snapshot Gallery */}
+      {snapshotConfig.enabled && videoSnapshots.length > 0 && (
+        <SnapshotGallery
+          snapshots={videoSnapshots}
+          onClear={clearVideoSnapshots}
+        />
       )}
 
       {/* Error display */}

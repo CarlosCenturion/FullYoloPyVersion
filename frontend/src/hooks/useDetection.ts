@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react'
-import { Detection, DetectionResult, DetectionConfig } from '../types'
+import { Detection, DetectionResult, DetectionConfig, Snapshot, SnapshotConfig } from '../types'
 import { detectionApi } from '../services/api'
 
 interface GalleryOptions {
@@ -18,9 +18,12 @@ interface UseDetectionReturn {
   resultImageUrl: string | null
   resultVideoUrl: string | null
   isVideoReady: boolean
-  processImage: (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => Promise<void>
+  snapshots: Snapshot[]
+  processImage: (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions, snapshotConfig?: SnapshotConfig) => Promise<void>
+  processImageWithTracking: (file: File, model: string, config?: DetectionConfig, snapshotConfig?: SnapshotConfig) => Promise<void>
   processVideo: (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => Promise<void>
   clearResults: () => void
+  clearSnapshots: () => void
 }
 
 export const useDetection = (): UseDetectionReturn => {
@@ -31,6 +34,7 @@ export const useDetection = (): UseDetectionReturn => {
   const [resultImageUrl, setResultImageUrl] = useState<string | null>(null)
   const [resultVideoUrl, setResultVideoUrl] = useState<string | null>(null)
   const [isVideoReady, setIsVideoReady] = useState(false)
+  const [snapshots, setSnapshots] = useState<Snapshot[]>([])
 
   const clearResults = useCallback(() => {
     setDetections([])
@@ -41,20 +45,55 @@ export const useDetection = (): UseDetectionReturn => {
     setIsVideoReady(false)
   }, [])
 
-  const processImage = useCallback(async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => {
+  const clearSnapshots = useCallback(() => {
+    setSnapshots([])
+    detectionApi.clearSnapshots().catch(console.error)
+  }, [])
+
+  const processImage = useCallback(async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions, snapshotConfig?: SnapshotConfig) => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      const result: DetectionResult = await detectionApi.detectImage(file, model, config, galleryOptions)
+      const result: DetectionResult = await detectionApi.detectImage(file, model, config, galleryOptions, snapshotConfig)
 
       if (result.success) {
         setDetections(result.detections)
         setProcessingTime(result.processing_time)
         setResultImageUrl(result.image_url || null)
         setResultVideoUrl(null)
+        if (result.snapshots && result.snapshots.length > 0) {
+          setSnapshots(prev => [...result.snapshots!, ...prev])
+        }
       } else {
         throw new Error('Detection failed')
+      }
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
+      setError(errorMessage)
+      clearResults()
+    } finally {
+      setIsProcessing(false)
+    }
+  }, [clearResults])
+
+  const processImageWithTracking = useCallback(async (file: File, model: string, config?: DetectionConfig, snapshotConfig?: SnapshotConfig) => {
+    setIsProcessing(true)
+    setError(null)
+
+    try {
+      const result: DetectionResult = await detectionApi.detectWithTracking(file, model, config, snapshotConfig)
+
+      if (result.success) {
+        setDetections(result.detections)
+        setProcessingTime(result.processing_time)
+        setResultImageUrl(null)
+        setResultVideoUrl(null)
+        if (result.snapshots && result.snapshots.length > 0) {
+          setSnapshots(prev => [...result.snapshots!, ...prev])
+        }
+      } else {
+        throw new Error('Tracking detection failed')
       }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Unknown error occurred'
@@ -129,8 +168,11 @@ export const useDetection = (): UseDetectionReturn => {
     resultImageUrl,
     resultVideoUrl,
     isVideoReady,
+    snapshots,
     processImage,
+    processImageWithTracking,
     processVideo,
     clearResults,
+    clearSnapshots,
   }
 }

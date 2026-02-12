@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios'
-import { ModelInfo, DetectionResult, ApiError, DetectionConfig } from '../types'
+import { ModelInfo, DetectionResult, ApiError, DetectionConfig, SnapshotConfig } from '../types'
 
 interface GalleryOptions {
   saveToGallery: boolean
@@ -56,7 +56,7 @@ export const detectionApi = {
   },
 
   // Detect objects in image
-  detectImage: async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions): Promise<DetectionResult> => {
+  detectImage: async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions, snapshotConfig?: SnapshotConfig): Promise<DetectionResult> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('model', model)
@@ -83,6 +83,14 @@ export const detectionApi = {
       }
       if (galleryOptions.tags && galleryOptions.tags.length > 0) {
         formData.append('gallery_tags', galleryOptions.tags.join(','))
+      }
+    }
+
+    // Add snapshot config if provided
+    if (snapshotConfig?.enabled) {
+      formData.append('snapshot_enabled', 'true')
+      if (snapshotConfig.classes.length > 0) {
+        formData.append('snapshot_classes', snapshotConfig.classes.join(','))
       }
     }
 
@@ -142,7 +150,7 @@ export const detectionApi = {
   },
 
   // Detect and track objects in an image frame (ByteTrack)
-  detectWithTracking: async (file: File, model: string, config?: DetectionConfig): Promise<DetectionResult> => {
+  detectWithTracking: async (file: File, model: string, config?: DetectionConfig, snapshotConfig?: SnapshotConfig): Promise<DetectionResult> => {
     const formData = new FormData()
     formData.append('file', file)
     formData.append('model', model)
@@ -152,6 +160,14 @@ export const detectionApi = {
       formData.append('iou', config.iou.toString())
       formData.append('max_det', config.maxDetections.toString())
       formData.append('imgsz', config.imageSize.toString())
+    }
+
+    // Add snapshot config if provided
+    if (snapshotConfig?.enabled) {
+      formData.append('snapshot_enabled', 'true')
+      if (snapshotConfig.classes.length > 0) {
+        formData.append('snapshot_classes', snapshotConfig.classes.join(','))
+      }
     }
 
     const response: AxiosResponse<DetectionResult> = await api.post(
@@ -173,6 +189,12 @@ export const detectionApi = {
     await api.post('/api/detect/track/reset', formData, {
       headers: { 'Content-Type': 'multipart/form-data' },
     })
+  },
+
+  // Clear all snapshots from disk
+  clearSnapshots: async (): Promise<{ success: boolean; deleted: number }> => {
+    const response = await api.delete('/api/snapshots')
+    return response.data
   },
 
   // Health check

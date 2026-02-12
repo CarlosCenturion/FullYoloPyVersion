@@ -53,6 +53,13 @@ class Settings(BaseSettings):
     detection_confidence_threshold: float = 0.25
     max_video_duration: int = 300  # 5 minutes
 
+    # Snapshot settings
+    snapshot_directory: str = "static/snapshots"
+    snapshot_max_width: int = 300
+    snapshot_jpeg_quality: int = 85
+    snapshot_max_per_request: int = 50
+    snapshot_min_confidence: float = 0.75
+
     # Logging
     log_level: str = "INFO"
     log_file: str = "../logs/app.log"

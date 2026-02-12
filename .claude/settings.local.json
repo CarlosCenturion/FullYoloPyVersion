@@ -4,7 +4,8 @@
       "Bash(dir:*)",
       "Bash(npx tsc:*)",
       "Bash(del \"e:\\\\Proyectos\\\\FullYoloPyVersion\\\\frontend\\\\src\\\\components\\\\AdvancedConfig.tsx\")",
-      "Bash(npm run build:*)"
+      "Bash(npm run build:*)",
+      "Bash(xargs:*)"
     ]
   }
 }

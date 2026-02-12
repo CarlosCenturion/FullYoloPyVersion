@@ -58,6 +58,8 @@ async def detect_objects_in_image(
     gallery_description: str = Form(None, description="Description for gallery item"),
     gallery_project_id: str = Form(None, description="Project ID to associate with"),
     gallery_tags: str = Form(None, description="Comma-separated tags for gallery item"),
+    snapshot_enabled: bool = Form(False, description="Enable snapshot capture of detected objects"),
+    snapshot_classes: str = Form(None, description="Comma-separated class names to snapshot (e.g., 'car,person'). Empty = all classes"),
     session: AsyncSession = Depends(get_db)
 ):
     """Detect objects in an uploaded image."""
@@ -93,10 +95,19 @@ async def detect_objects_in_image(
                 save_to_gallery=True
             )
 
-        logger.info(f"Processing image with model {model}: {file.filename} - Config: {detection_config} - Gallery: {save_to_gallery}")
+        # Parse snapshot classes
+        parsed_snapshot_classes = None
+        if snapshot_classes:
+            parsed_snapshot_classes = [c.strip() for c in snapshot_classes.split(',') if c.strip()]
+
+        logger.info(f"Processing image with model {model}: {file.filename} - Config: {detection_config} - Gallery: {save_to_gallery} - Snapshots: {snapshot_enabled}")
 
         # Process image
-        result = await detection_service.process_image(file, model, detection_config, gallery_request, session)
+        result = await detection_service.process_image(
+            file, model, detection_config, gallery_request, session,
+            snapshot_enabled=snapshot_enabled,
+            snapshot_classes=parsed_snapshot_classes,
+        )
 
         processing_time = time.time() - start_time
         result["processing_time"] = processing_time
@@ -187,6 +198,8 @@ async def detect_with_tracking(
     iou: float = Form(None, description="IOU threshold for NMS (0.0-1.0)"),
     max_det: int = Form(None, description="Maximum number of detections"),
     imgsz: int = Form(None, description="Input image size (320, 640, 1280)"),
+    snapshot_enabled: bool = Form(False, description="Enable snapshot capture of detected objects"),
+    snapshot_classes: str = Form(None, description="Comma-separated class names to snapshot"),
 ):
     """Detect and track objects in an image frame using ByteTrack."""
     start_time = time.time()
@@ -207,7 +220,16 @@ async def detect_with_tracking(
         if imgsz is not None:
             detection_config['imgsz'] = imgsz
 
-        result = await detection_service.process_image_with_tracking(file, model, detection_config)
+        # Parse snapshot classes
+        parsed_snapshot_classes = None
+        if snapshot_classes:
+            parsed_snapshot_classes = [c.strip() for c in snapshot_classes.split(',') if c.strip()]
+
+        result = await detection_service.process_image_with_tracking(
+            file, model, detection_config,
+            snapshot_enabled=snapshot_enabled,
+            snapshot_classes=parsed_snapshot_classes,
+        )
 
         processing_time = time.time() - start_time
         result["processing_time"] = processing_time
@@ -258,6 +280,35 @@ async def get_video_status(filename: str):
             "ready": False,
             "filename": filename
         }
+
+
+@router.get("/snapshots")
+async def list_snapshots():
+    """List all snapshot files currently on disk."""
+    snapshot_dir = settings.snapshot_directory
+    if not os.path.exists(snapshot_dir):
+        return {"snapshots": [], "count": 0}
+    files = sorted(
+        [f for f in os.listdir(snapshot_dir) if f.startswith("snap_") and f.endswith(".jpg")],
+        key=lambda f: os.path.getmtime(os.path.join(snapshot_dir, f)),
+        reverse=True
+    )
+    return {
+        "snapshots": [{"snapshot_url": f"/static/snapshots/{f}"} for f in files],
+        "count": len(files)
+    }
+
+
+@router.delete("/snapshots")
+async def clear_snapshots():
+    """Delete all snapshot files from disk."""
+    import glob
+    snapshot_dir = settings.snapshot_directory
+    files = glob.glob(os.path.join(snapshot_dir, "snap_*.jpg"))
+    for f in files:
+        os.remove(f)
+    detection_service.snapshot_service.reset_seen_tracks()
+    return {"success": True, "deleted": len(files)}
 
 
 @router.get("/health")

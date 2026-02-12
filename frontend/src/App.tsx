@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import { Camera, Upload, Film, Image as ImageIcon, Zap, Scale, Sparkles, Info, Eye } from 'lucide-react'
+import { Camera, Upload, Film, Image as ImageIcon, Zap, Scale, Sparkles, Info, Eye, Crop } from 'lucide-react'
 import WebcamStream from './components/WebcamStream'
 import FileUpload from './components/FileUpload'
 import VideoPlayer from './components/VideoPlayer'
 import DetectionResult from './components/DetectionResult'
+import SnapshotGallery from './components/SnapshotGallery'
 import Gallery from './components/Gallery'
 import IntroAnimation from './components/IntroAnimation'
 import { useDetection } from './hooks/useDetection'
-import { DetectionConfig, ModelInfo } from './types'
+import { DetectionConfig, ModelInfo, SnapshotConfig } from './types'
 import { detectionApi } from './services/api'
 
 type TabType = 'webcam' | 'upload' | 'video' | 'gallery'
@@ -60,6 +61,8 @@ function App() {
     return (localStorage.getItem('charly-theme') as ThemeType) || 'cyan'
   })
 
+  const [snapshotConfig, setSnapshotConfig] = useState<SnapshotConfig>({ enabled: false, classes: [] })
+
   const {
     detections,
     processingTime,
@@ -68,9 +71,12 @@ function App() {
     resultImageUrl,
     resultVideoUrl,
     isVideoReady,
+    snapshots,
     processImage,
+    processImageWithTracking,
     processVideo,
-    clearResults
+    clearResults,
+    clearSnapshots
   } = useDetection()
 
   // Apply theme to document
@@ -99,7 +105,11 @@ function App() {
   }
 
   const handleProcessImage = async (file: File, model: string, galleryOptions?: any) => {
-    await processImage(file, model, detectionConfig, galleryOptions)
+    if (activeTab === 'webcam' && snapshotConfig.enabled) {
+      await processImageWithTracking(file, model, detectionConfig, snapshotConfig)
+    } else {
+      await processImage(file, model, detectionConfig, galleryOptions, snapshotConfig)
+    }
   }
 
   const handleProcessVideo = async (file: File, model: string, galleryOptions?: any) => {
@@ -279,6 +289,43 @@ function App() {
                 ))}
               </div>
             </div>
+
+            <div className="h-5 w-px bg-surface-border" />
+
+            {/* Snapshot Toggle */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-gray-500 uppercase tracking-wider font-body">Snap</span>
+              <button
+                onClick={() => setSnapshotConfig(prev => ({ ...prev, enabled: !prev.enabled }))}
+                className="flex items-center px-2.5 py-1 text-xs font-semibold uppercase tracking-wider transition-all"
+                style={{
+                  borderRadius: '2px',
+                  color: snapshotConfig.enabled ? 'var(--accent)' : undefined,
+                  backgroundColor: snapshotConfig.enabled ? 'var(--accent-muted)' : undefined,
+                  border: snapshotConfig.enabled ? '1px solid var(--accent-border)' : '1px solid transparent',
+                }}
+              >
+                <Crop className="w-3 h-3 mr-1" />
+                {snapshotConfig.enabled ? 'ON' : 'OFF'}
+              </button>
+              {snapshotConfig.enabled && (
+                <input
+                  type="text"
+                  placeholder="all classes"
+                  value={snapshotConfig.classes.join(', ')}
+                  onChange={(e) => {
+                    const classes = e.target.value
+                      .split(',')
+                      .map(c => c.trim())
+                      .filter(c => c.length > 0)
+                    setSnapshotConfig(prev => ({ ...prev, classes }))
+                  }}
+                  className="px-2 py-1 text-xs font-mono bg-surface-secondary border border-surface-border text-gray-300 w-32"
+                  style={{ borderRadius: '3px' }}
+                  title="Comma-separated class names (e.g., car, person). Leave empty for all."
+                />
+              )}
+            </div>
           </div>
 
           {/* Help panel */}
@@ -302,6 +349,7 @@ function App() {
             <VideoPlayer
               selectedModel={selectedModel}
               detectionConfig={detectionConfig}
+              snapshotConfig={snapshotConfig}
             />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -331,6 +379,12 @@ function App() {
                   resultVideoUrl={resultVideoUrl}
                   isVideoReady={isVideoReady}
                 />
+                {snapshotConfig.enabled && snapshots.length > 0 && (
+                  <SnapshotGallery
+                    snapshots={snapshots}
+                    onClear={clearSnapshots}
+                  />
+                )}
               </div>
             </div>
           )}

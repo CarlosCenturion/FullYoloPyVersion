@@ -13,6 +13,20 @@ export interface ModelInfo {
   filename: string
 }
 
+export interface Snapshot {
+  snapshot_url: string
+  class: string
+  confidence: number
+  bbox: [number, number, number, number]
+  track_id?: number
+  timestamp: number
+}
+
+export interface SnapshotConfig {
+  enabled: boolean
+  classes: string[]   // empty array = all classes
+}
+
 export interface DetectionResult {
   success: boolean
   detections: Detection[]
@@ -24,6 +38,7 @@ export interface DetectionResult {
   image_size?: string
   total_frames?: number
   processing_fps?: number
+  snapshots?: Snapshot[]
 }
 
 export interface ApiError {
