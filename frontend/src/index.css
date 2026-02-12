@@ -2,45 +2,254 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ========================================
+   THEME SYSTEM - CSS Custom Properties
+   ======================================== */
+
+/* CYAN - "TRON" (default) */
+[data-theme="cyan"] {
+  --accent: #00ffcc;
+  --accent-rgb: 0, 255, 204;
+  --accent-dim: #0a2a2a;
+  --accent-muted: rgba(0, 255, 204, 0.12);
+  --accent-border: rgba(0, 255, 204, 0.3);
+  --accent-hover: #33ffd6;
+  --accent-text: #00ffcc;
+}
+
+/* AMBER - "MILITARY" */
+[data-theme="amber"] {
+  --accent: #ff9500;
+  --accent-rgb: 255, 149, 0;
+  --accent-dim: #2a1a00;
+  --accent-muted: rgba(255, 149, 0, 0.12);
+  --accent-border: rgba(255, 149, 0, 0.3);
+  --accent-hover: #ffaa33;
+  --accent-text: #ff9500;
+}
+
+/* RED - "HAL" */
+[data-theme="red"] {
+  --accent: #ff3333;
+  --accent-rgb: 255, 51, 51;
+  --accent-dim: #2a0a0a;
+  --accent-muted: rgba(255, 51, 51, 0.12);
+  --accent-border: rgba(255, 51, 51, 0.3);
+  --accent-hover: #ff5555;
+  --accent-text: #ff3333;
+}
+
+/* ========================================
+   BASE LAYER
+   ======================================== */
+
 @layer base {
   html {
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: 'Rajdhani', system-ui, sans-serif;
+    background-color: #0d1117;
+    color: #e6edf3;
   }
 
   body {
-    @apply bg-gray-50 text-gray-900;
+    background-color: #0d1117;
+    color: #e6edf3;
     font-feature-settings: 'rlig' 1, 'calt' 1;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+
+  ::-webkit-scrollbar-track {
+    background: #161b22;
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #30363d;
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #484f58;
+  }
+
+  /* Form elements dark styling */
+  select,
+  input[type="text"],
+  input[type="date"],
+  textarea {
+    background-color: #161b22;
+    border-color: #30363d;
+    color: #e6edf3;
+  }
+
+  select:focus,
+  input[type="text"]:focus,
+  input[type="date"]:focus,
+  textarea:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-border);
+    outline: none;
+  }
+
+  select option {
+    background-color: #161b22;
+    color: #e6edf3;
+  }
+
+  /* Range input */
+  input[type="range"] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    background: #30363d;
+    border-radius: 2px;
+    outline: none;
+  }
+
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--accent);
+    cursor: pointer;
+    box-shadow: 0 0 6px var(--accent-border);
+  }
+
+  input[type="range"]::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border-radius: 2px;
+    background: var(--accent);
+    cursor: pointer;
+    border: none;
+    box-shadow: 0 0 6px var(--accent-border);
+  }
+
+  /* Checkbox */
+  input[type="checkbox"] {
+    accent-color: var(--accent);
   }
 }
+
+/* ========================================
+   COMPONENT LAYER
+   ======================================== */
 
 @layer components {
   .btn {
-    @apply inline-flex items-center justify-center rounded-md px-4 py-2 text-sm font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none;
+    @apply inline-flex items-center justify-center px-4 py-2 text-sm font-semibold uppercase tracking-wider transition-all duration-150 focus:outline-none disabled:opacity-40 disabled:pointer-events-none;
+    border-radius: 3px;
+    font-family: 'Rajdhani', system-ui, sans-serif;
   }
 
   .btn-primary {
-    @apply bg-primary-600 text-white hover:bg-primary-700 focus:ring-primary-500;
+    background-color: var(--accent-muted);
+    color: var(--accent);
+    border: 1px solid var(--accent-border);
+  }
+
+  .btn-primary:hover:not(:disabled) {
+    background-color: var(--accent-border);
+    box-shadow: 0 0 10px var(--accent-muted);
+  }
+
+  .btn-primary:focus {
+    box-shadow: 0 0 0 2px var(--accent-border);
   }
 
   .btn-secondary {
-    @apply bg-white text-gray-700 border border-gray-300 hover:bg-gray-50 focus:ring-primary-500;
+    @apply bg-surface-tertiary text-gray-300 border border-surface-border;
+  }
+
+  .btn-secondary:hover:not(:disabled) {
+    @apply bg-surface-border text-gray-100;
   }
 
   .card {
-    @apply bg-white rounded-lg shadow-sm border border-gray-200 p-6;
+    background-color: #0d1117;
+    border: 1px solid #30363d;
+    padding: 1.5rem;
+    border-radius: 3px;
   }
 
   .input {
-    @apply block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm placeholder-gray-400 focus:outline-none focus:ring-primary-500 focus:border-primary-500 sm:text-sm;
+    @apply block w-full px-3 py-2 text-sm font-mono;
+    background-color: #161b22;
+    border: 1px solid #30363d;
+    color: #e6edf3;
+    border-radius: 3px;
+  }
+
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 1px var(--accent-border);
+    outline: none;
+  }
+
+  .input::placeholder {
+    color: #484f58;
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-xs font-semibold uppercase tracking-wider mb-1;
+    color: #8b949e;
+    font-family: 'Rajdhani', system-ui, sans-serif;
   }
 }
+
+/* ========================================
+   UTILITY LAYER
+   ======================================== */
 
 @layer utilities {
   .text-balance {
     text-wrap: balance;
+  }
+
+  .text-accent {
+    color: var(--accent);
+  }
+
+  .bg-accent-muted {
+    background-color: var(--accent-muted);
+  }
+
+  .bg-accent-dim {
+    background-color: var(--accent-dim);
+  }
+
+  .border-accent {
+    border-color: var(--accent-border);
+  }
+
+  .border-accent-solid {
+    border-color: var(--accent);
+  }
+
+  .glow {
+    box-shadow: 0 0 10px var(--accent-border), 0 0 20px var(--accent-muted);
+  }
+
+  .glow-sm {
+    box-shadow: 0 0 5px var(--accent-border);
+  }
+
+  .glow-text {
+    text-shadow: 0 0 10px var(--accent-border), 0 0 20px var(--accent-muted);
+  }
+
+  .font-heading {
+    font-family: 'Orbitron', sans-serif;
+  }
+
+  .font-body {
+    font-family: 'Rajdhani', system-ui, sans-serif;
   }
 }

@@ -22,14 +22,9 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
 
   const checkCameraAvailability = useCallback(async (): Promise<{available: boolean, devices: MediaDeviceInfo[]}> => {
     try {
-      // Request permission to enumerate devices
       const devices = await navigator.mediaDevices.enumerateDevices()
       const videoDevices = devices.filter(device => device.kind === 'videoinput')
-
-      return {
-        available: videoDevices.length > 0,
-        devices: videoDevices
-      }
+      return { available: videoDevices.length > 0, devices: videoDevices }
     } catch (err) {
       console.warn('Could not enumerate devices:', err)
       return { available: false, devices: [] }
@@ -42,31 +37,29 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
 
     switch (errorName) {
       case 'NotAllowedError':
-        return 'Permiso de cámara denegado. Permite el acceso a la cámara e inténtalo de nuevo.'
+        return 'Camera permission denied. Allow camera access and try again.'
       case 'NotFoundError':
-        return 'No se encontró dispositivo de cámara. Conecta una cámara y actualiza la página.'
+        return 'No camera device found. Connect a camera and refresh.'
       case 'NotReadableError':
-        return 'La cámara ya está en uso por otra aplicación. Cierra otras apps que usen la cámara.'
+        return 'Camera already in use by another application.'
       case 'OverconstrainedError':
-        return 'La cámara no soporta el formato de video requerido. Prueba con una cámara diferente.'
+        return 'Camera does not support required video format.'
       case 'SecurityError':
-        return 'Acceso a cámara bloqueado por restricciones de seguridad. Asegúrate de usar HTTPS o localhost.'
+        return 'Camera access blocked by security restrictions. Use HTTPS or localhost.'
       case 'AbortError':
-        return 'Acceso a cámara interrumpido. Inténtalo de nuevo.'
+        return 'Camera access interrupted. Try again.'
       default:
         if (errorMessage.includes('video source')) {
-          return 'No se pudo iniciar la fuente de video. Revisa los permisos de cámara e inténtalo de nuevo.'
+          return 'Could not start video source. Check camera permissions.'
         }
-        return `Error de acceso a cámara: ${errorMessage || 'Error desconocido'}`
+        return `Camera access error: ${errorMessage || 'Unknown error'}`
     }
   }, [])
 
   const startCamera = useCallback(async () => {
     try {
       setError(null)
-
-      // First check if camera is available
-      const { available, devices } = await checkCameraAvailability()
+      const { available } = await checkCameraAvailability()
 
       if (!available) {
         setError('No camera devices found. Please connect a camera and refresh the page.')
@@ -74,7 +67,6 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
         return
       }
 
-      // Check current permission status
       try {
         const permissionStatus = await navigator.permissions.query({ name: 'camera' as PermissionName })
         if (permissionStatus.state === 'denied') {
@@ -83,16 +75,11 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
           return
         }
       } catch (permErr) {
-        // Permissions API might not be fully supported, continue with getUserMedia
         console.warn('Could not check permission status:', permErr)
       }
 
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          width: { ideal: 640 },
-          height: { ideal: 480 },
-          facingMode: 'user'
-        }
+        video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' }
       })
 
       if (videoRef.current) {
@@ -105,33 +92,30 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
             setCameraPermission(true)
             setError(null)
           }).catch((playError) => {
-            console.error('Error al reproducir video:', playError)
-            setError('No se pudo iniciar la reproducción del video. Inténtalo de nuevo.')
+            console.error('Error playing video:', playError)
+            setError('Could not start video playback. Try again.')
             setCameraPermission(false)
           })
         }
 
         videoRef.current.onerror = (e) => {
-          console.error('Error en elemento de video:', e)
-          setError('Error en el elemento de video. Actualiza la página.')
+          console.error('Video element error:', e)
+          setError('Video element error. Refresh the page.')
           setCameraPermission(false)
           setIsStreaming(false)
         }
 
-        // Fallback: intentar reproducir después de un retraso si los metadatos no cargan
         setTimeout(() => {
           if (!isStreaming && videoRef.current && !videoRef.current.error) {
             videoRef.current.play().then(() => {
               setIsStreaming(true)
               setCameraPermission(true)
               setError(null)
-            }).catch(() => {
-              // Silenciar errores de respaldo
-            })
+            }).catch(() => {})
           }
         }, 2000)
       } else {
-        setError('Elemento de video no disponible. Actualiza la página.')
+        setError('Video element not available. Refresh the page.')
       }
     } catch (err) {
       const errorMessage = getCameraErrorMessage(err)
@@ -146,11 +130,9 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
       streamRef.current.getTracks().forEach(track => track.stop())
       streamRef.current = null
     }
-
     if (videoRef.current) {
       videoRef.current.srcObject = null
     }
-
     setIsStreaming(false)
   }, [])
 
@@ -160,17 +142,12 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
     const video = videoRef.current
     const canvas = canvasRef.current
     const context = canvas.getContext('2d')
-
     if (!context) return
 
-    // Set canvas dimensions to match video
     canvas.width = video.videoWidth
     canvas.height = video.videoHeight
-
-    // Draw current video frame to canvas
     context.drawImage(video, 0, 0, canvas.width, canvas.height)
 
-    // Convert canvas to blob
     canvas.toBlob(async (blob) => {
       if (blob) {
         const file = new File([blob], 'webcam-capture.jpg', { type: 'image/jpeg' })
@@ -183,62 +160,54 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
     }, 'image/jpeg', 0.8)
   }, [isStreaming, selectedModel, onDetection])
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      stopCamera()
-    }
+    return () => { stopCamera() }
   }, [stopCamera])
 
-  // Handle model changes - stop/start camera to reset stream
   const [lastModel, setLastModel] = useState(selectedModel)
   useEffect(() => {
     if (lastModel !== selectedModel && isStreaming) {
       stopCamera()
       setLastModel(selectedModel)
-      // Note: We don't auto-restart to give user control
     }
   }, [selectedModel, isStreaming, stopCamera, lastModel])
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Webcam Detection</h2>
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider font-body">Webcam Detection</h2>
         <div className="flex items-center space-x-2">
           {cameraPermission === false && (
-            <AlertCircle className="w-4 h-4 text-red-500" />
+            <AlertCircle className="w-4 h-4 text-red-400" />
           )}
           {cameraPermission === true && isStreaming && (
-            <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+            <div className="flex items-center gap-1.5">
+              <div className="w-2 h-2 bg-red-500 animate-pulse" style={{ borderRadius: '1px' }} />
+              <span className="text-xs font-mono text-red-400 uppercase">Live</span>
+            </div>
           )}
         </div>
       </div>
 
       {/* Video Container */}
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden mb-4" style={{ height: '256px' }}>
+      <div className="relative bg-black overflow-hidden mb-4 border border-surface-border" style={{ height: '256px', borderRadius: '2px' }}>
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
           className="w-full h-full object-cover"
-          style={{
-            display: 'block',
-            opacity: isStreaming ? 1 : 0.3
-          }}
+          style={{ display: 'block', opacity: isStreaming ? 1 : 0.3 }}
         />
 
-        <canvas
-          ref={canvasRef}
-          className="hidden"
-        />
+        <canvas ref={canvasRef} className="hidden" />
 
         {!isStreaming && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50">
-            <div className="text-center text-white">
-              <CameraOff className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p className="text-lg">Camera not active</p>
-              <p className="text-sm opacity-75">Click start to begin detection</p>
+          <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+            <div className="text-center">
+              <CameraOff className="w-12 h-12 mx-auto mb-4 text-gray-600" />
+              <p className="text-sm font-body uppercase tracking-wider text-gray-400">Camera not active</p>
+              <p className="text-xs font-mono text-gray-600 mt-1">Click start to begin detection</p>
             </div>
           </div>
         )}
@@ -246,14 +215,15 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
 
       {/* Error Display */}
       {error && (
-        <div className="mb-4 bg-red-50 border border-red-200 rounded-lg p-3">
+        <div className="mb-4 bg-red-500/10 border border-red-500/30 p-3" style={{ borderRadius: '3px' }}>
           <div className="flex items-start">
-            <AlertCircle className="w-4 h-4 text-red-500 mr-2 mt-0.5 flex-shrink-0" />
+            <AlertCircle className="w-4 h-4 text-red-400 mr-2 mt-0.5 flex-shrink-0" />
             <div className="flex-1">
-              <span className="text-sm text-red-700 block">{error}</span>
+              <span className="text-xs text-red-300 block font-mono">{error}</span>
               <button
                 onClick={startCamera}
-                className="mt-2 px-3 py-1 bg-red-600 text-white text-xs rounded hover:bg-red-700 transition-colors"
+                className="mt-2 px-3 py-1 bg-red-500/20 text-red-400 text-xs border border-red-500/30 hover:bg-red-500/30 transition-colors uppercase tracking-wider font-body"
+                style={{ borderRadius: '2px' }}
               >
                 Try Again
               </button>
@@ -271,7 +241,7 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
             className="flex-1 btn btn-primary"
           >
             <Play className="w-4 h-4 mr-2" />
-            Start Camera
+            START CAMERA
           </button>
         ) : (
           <>
@@ -280,23 +250,23 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
               className="flex-1 btn btn-secondary"
             >
               <Square className="w-4 h-4 mr-2" />
-              Stop Camera
+              STOP
             </button>
 
             <button
               onClick={captureFrame}
               disabled={isProcessing}
-              className="flex-1 btn btn-primary disabled:opacity-50 disabled:cursor-not-allowed"
+              className="flex-1 btn btn-primary disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {isProcessing ? (
                 <>
-                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></div>
-                  Processing...
+                  <div className="animate-spin h-4 w-4 border-2 border-current/30 mr-2" style={{ borderTopColor: 'currentColor', borderRadius: '2px' }}></div>
+                  PROCESSING...
                 </>
               ) : (
                 <>
                   <Camera className="w-4 h-4 mr-2" />
-                  Capture Frame
+                  CAPTURE
                 </>
               )}
             </button>
@@ -305,31 +275,32 @@ const WebcamStream: React.FC<WebcamStreamProps> = ({
       </div>
 
       {/* Instructions */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <h3 className="text-sm font-medium text-blue-800 mb-2">How to use:</h3>
-        <ol className="text-sm text-blue-700 space-y-1">
-          <li>1. Click "Start Camera" to enable webcam access</li>
+      <div className="mt-4 p-3 bg-accent-muted border border-accent" style={{ borderRadius: '3px', borderColor: 'var(--accent-border)' }}>
+        <h3 className="text-xs font-semibold mb-2 uppercase tracking-wider font-body" style={{ color: 'var(--accent)' }}>How to use:</h3>
+        <ol className="text-xs text-gray-400 space-y-1 font-mono">
+          <li>1. Click "START CAMERA" to enable webcam access</li>
           <li>2. Position objects in front of the camera</li>
-          <li>3. Click "Capture Frame" to analyze the current frame</li>
+          <li>3. Click "CAPTURE" to analyze the current frame</li>
           <li>4. View detection results in the panel on the right</li>
         </ol>
       </div>
 
       {/* Camera Permissions Info */}
       {cameraPermission === false && (
-        <div className="mt-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg">
+        <div className="mt-4 p-3 bg-amber-500/10 border border-amber-500/30" style={{ borderRadius: '3px' }}>
           <div className="flex items-start">
-            <AlertCircle className="w-4 h-4 text-yellow-500 mr-2 mt-0.5 flex-shrink-0" />
-            <div className="text-sm text-yellow-700">
-              <p className="font-medium mb-2">Camera Access Troubleshooting</p>
-              <div className="space-y-2">
-                <p><strong>Browser Permission:</strong> Click the camera icon in your address bar and allow access.</p>
-                <p><strong>Settings:</strong> Go to browser settings → Privacy → Camera → Allow for this site.</p>
-                <p><strong>Other Apps:</strong> Close other applications using your camera (Zoom, Teams, etc.).</p>
-                <p><strong>Hardware:</strong> Ensure your camera is properly connected and not faulty.</p>
+            <AlertCircle className="w-4 h-4 text-amber-400 mr-2 mt-0.5 flex-shrink-0" />
+            <div className="text-xs text-amber-300/80 font-mono">
+              <p className="font-semibold mb-2 uppercase tracking-wider text-amber-400 font-body">Camera Troubleshooting</p>
+              <div className="space-y-1">
+                <p><span className="text-amber-400">BROWSER:</span> Click camera icon in address bar and allow access.</p>
+                <p><span className="text-amber-400">SETTINGS:</span> Browser settings &gt; Privacy &gt; Camera &gt; Allow for this site.</p>
+                <p><span className="text-amber-400">APPS:</span> Close other applications using your camera.</p>
+                <p><span className="text-amber-400">HARDWARE:</span> Ensure your camera is connected and working.</p>
                 <button
                   onClick={() => window.location.reload()}
-                  className="mt-2 px-3 py-1 bg-yellow-600 text-white text-xs rounded hover:bg-yellow-700 transition-colors"
+                  className="mt-2 px-3 py-1 bg-amber-500/20 text-amber-400 text-xs border border-amber-500/30 hover:bg-amber-500/30 transition-colors uppercase tracking-wider font-body"
+                  style={{ borderRadius: '2px' }}
                 >
                   Refresh Page
                 </button>

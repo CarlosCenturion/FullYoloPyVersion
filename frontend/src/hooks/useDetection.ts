@@ -2,6 +2,14 @@ import { useState, useCallback } from 'react'
 import { Detection, DetectionResult, DetectionConfig } from '../types'
 import { detectionApi } from '../services/api'
 
+interface GalleryOptions {
+  saveToGallery: boolean
+  title?: string
+  description?: string
+  projectId?: string
+  tags?: string[]
+}
+
 interface UseDetectionReturn {
   detections: Detection[]
   processingTime: number | null
@@ -10,8 +18,8 @@ interface UseDetectionReturn {
   resultImageUrl: string | null
   resultVideoUrl: string | null
   isVideoReady: boolean
-  processImage: (file: File, model: string, config?: DetectionConfig) => Promise<void>
-  processVideo: (file: File, model: string, config?: DetectionConfig) => Promise<void>
+  processImage: (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => Promise<void>
+  processVideo: (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => Promise<void>
   clearResults: () => void
 }
 
@@ -33,12 +41,12 @@ export const useDetection = (): UseDetectionReturn => {
     setIsVideoReady(false)
   }, [])
 
-  const processImage = useCallback(async (file: File, model: string, config?: DetectionConfig) => {
+  const processImage = useCallback(async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      const result: DetectionResult = await detectionApi.detectImage(file, model, config)
+      const result: DetectionResult = await detectionApi.detectImage(file, model, config, galleryOptions)
 
       if (result.success) {
         setDetections(result.detections)
@@ -57,12 +65,12 @@ export const useDetection = (): UseDetectionReturn => {
     }
   }, [clearResults])
 
-  const processVideo = useCallback(async (file: File, model: string, config?: DetectionConfig) => {
+  const processVideo = useCallback(async (file: File, model: string, config?: DetectionConfig, galleryOptions?: GalleryOptions) => {
     setIsProcessing(true)
     setError(null)
 
     try {
-      const result: DetectionResult = await detectionApi.detectVideo(file, model, config)
+      const result: DetectionResult = await detectionApi.detectVideo(file, model, config, galleryOptions)
 
       if (result.success) {
         setDetections([]) // Videos don't return per-frame detections

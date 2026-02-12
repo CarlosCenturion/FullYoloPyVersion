@@ -21,3 +21,7 @@ httpx
 
 # Logging and monitoring
 loguru
+
+# Database
+sqlalchemy
+aiosqlite

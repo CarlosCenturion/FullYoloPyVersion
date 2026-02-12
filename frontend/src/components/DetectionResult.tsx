@@ -137,19 +137,9 @@ const OBJECT_EMOJIS: { [key: string]: string } = {
   'bottle': '🍾',
   'glass': '🥃',
   'plate': '🍽️',
-  'bowl': '🍜',
-  'remote': '📺',
-  'keyboard': '⌨️',
-  'cell phone': '📱',
-  'microwave': '🍳',
-  'oven': '🍳',
-  'toaster': '🍞',
-  'sink': '🚰',
-  'refrigerator': '🧊',
   'potted plant': '🪴',
   'teddy bear': '🧸',
-  'hair drier': '💇',
-  'toothbrush': '🪥'
+  'hair drier': '💇'
 }
 
 // Function to get emoji for object class
@@ -191,11 +181,11 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
 }) => {
   if (isProcessing) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="card">
         <div className="flex items-center justify-center py-12">
           <div className="text-center">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Processing...</p>
+            <div className="animate-spin h-8 w-8 border-2 border-surface-border mx-auto mb-4" style={{ borderTopColor: 'var(--accent)', borderRadius: '2px' }}></div>
+            <p className="text-gray-400 font-mono text-sm uppercase tracking-wider">Processing...</p>
           </div>
         </div>
       </div>
@@ -204,13 +194,13 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
 
   if (error) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+      <div className="card">
+        <div className="bg-red-500/10 border border-red-500/30 p-4" style={{ borderRadius: '3px' }}>
           <div className="flex items-center">
-            <AlertCircle className="w-5 h-5 text-red-500 mr-2 flex-shrink-0" />
+            <AlertCircle className="w-5 h-5 text-red-400 mr-2 flex-shrink-0" />
             <div>
-              <h3 className="text-sm font-medium text-red-800">Processing Error</h3>
-              <p className="text-sm text-red-700 mt-1">{error}</p>
+              <h3 className="text-sm font-semibold text-red-400 uppercase tracking-wider">Processing Error</h3>
+              <p className="text-sm text-red-300/80 mt-1 font-mono">{error}</p>
             </div>
           </div>
         </div>
@@ -220,11 +210,11 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
 
   if (detections.length === 0 && processingTime === null) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+      <div className="card">
         <div className="text-center py-12">
-          <Target className="w-12 h-12 text-gray-400 mx-auto mb-4" />
-          <h3 className="text-lg font-medium text-gray-900 mb-2">No Results Yet</h3>
-          <p className="text-gray-600">
+          <Target className="w-12 h-12 text-gray-600 mx-auto mb-4" />
+          <h3 className="text-lg font-semibold text-gray-300 mb-2 font-body uppercase tracking-wider">No Results Yet</h3>
+          <p className="text-gray-500 text-sm font-mono">
             Upload an image, video, or start your webcam to begin object detection
           </p>
         </div>
@@ -233,12 +223,12 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="card">
       <div className="flex items-center justify-between mb-4">
-        <h2 className="text-lg font-semibold text-gray-900">Detection Results</h2>
+        <h2 className="text-sm font-semibold text-gray-300 uppercase tracking-wider font-body">Detection Results</h2>
         {processingTime !== null && (
-          <div className="flex items-center text-sm text-gray-600">
-            <Clock className="w-4 h-4 mr-1" />
+          <div className="flex items-center text-xs font-mono" style={{ color: 'var(--accent)' }}>
+            <Clock className="w-3.5 h-3.5 mr-1" />
             {processingTime.toFixed(3)}s
           </div>
         )}
@@ -246,43 +236,53 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
 
       {detections.length > 0 ? (
         <div className="space-y-3">
-          <div className="flex items-center text-green-600 mb-4">
-            <CheckCircle className="w-5 h-5 mr-2" />
-            <span className="font-medium">
+          <div className="flex items-center mb-4" style={{ color: 'var(--accent)' }}>
+            <CheckCircle className="w-4 h-4 mr-2" />
+            <span className="font-semibold text-sm font-mono uppercase tracking-wider">
               Found {detections.length} object{detections.length !== 1 ? 's' : ''}
             </span>
           </div>
 
-          <div className="space-y-2 max-h-96 overflow-y-auto">
+          <div className="space-y-1.5 max-h-96 overflow-y-auto">
             {detections.map((detection, index) => (
               <div
                 key={index}
-                className="flex items-center justify-between p-3 bg-gray-50 rounded-lg"
+                className="flex items-center justify-between p-2.5 bg-surface-secondary border border-surface-border"
+                style={{ borderRadius: '2px' }}
               >
                 <div className="inline-flex items-center">
                   <div className="flex items-center mr-3">
                     <span className="text-lg mr-1">{getObjectEmoji(detection.class)}</span>
-                    
                   </div>
                   <div>
-                    <span className="font-medium text-gray-900 capitalize">
+                    <span className="font-semibold text-gray-200 capitalize text-sm font-body">
                       {detection.class}
                     </span>
-                    <div className="text-sm text-gray-600">
-                      Confidence: {(detection.confidence * 100).toFixed(1)}%
+                    <div className="text-xs font-mono text-gray-500">
+                      CONF: {(detection.confidence * 100).toFixed(1)}%
                     </div>
                   </div>
                 </div>
 
-                
+                {/* Confidence bar */}
+                <div className="w-20 h-1.5 bg-surface-tertiary overflow-hidden" style={{ borderRadius: '1px' }}>
+                  <div
+                    className="h-full"
+                    style={{
+                      width: `${detection.confidence * 100}%`,
+                      backgroundColor: 'var(--accent)',
+                      opacity: 0.7,
+                    }}
+                  />
+                </div>
               </div>
             ))}
           </div>
         </div>
       ) : (
         <div className="text-center py-8">
-          <Play className="w-8 h-8 text-gray-400 mx-auto mb-2" />
-          <p className="text-gray-600">
+          <Play className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+          <p className="text-gray-500 text-sm font-mono">
             Video processed successfully. Results will be displayed here.
           </p>
         </div>
@@ -291,17 +291,17 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
       {/* Display processed image/video */}
       {(resultImageUrl || resultVideoUrl) && (
         <div className="mt-6">
-          <h3 className="text-lg font-semibold text-gray-900 mb-4">Processed Result</h3>
-          <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="text-sm font-semibold text-gray-300 mb-4 uppercase tracking-wider font-body">Processed Result</h3>
+          <div className="bg-surface-secondary border border-surface-border p-4" style={{ borderRadius: '3px' }}>
             {resultImageUrl && (
               <div className="text-center">
                 <img
                   src={`http://localhost:8000${resultImageUrl}`}
                   alt="Processed result"
-                  className="max-w-full h-auto rounded-lg shadow-sm mx-auto"
-                  style={{ maxHeight: '400px' }}
+                  className="max-w-full h-auto mx-auto border border-surface-border"
+                  style={{ maxHeight: '400px', borderRadius: '2px' }}
                 />
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-xs text-gray-500 mt-2 font-mono uppercase tracking-wider">
                   Image processed with object detection bounding boxes
                 </p>
               </div>
@@ -311,12 +311,12 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
                 <video
                   src={`http://localhost:8000${resultVideoUrl}`}
                   controls
-                  className="max-w-full h-auto rounded-lg shadow-sm mx-auto"
-                  style={{ maxHeight: '400px' }}
+                  className="max-w-full h-auto mx-auto border border-surface-border"
+                  style={{ maxHeight: '400px', borderRadius: '2px' }}
                 >
                   Your browser does not support the video tag.
                 </video>
-                <p className="text-sm text-gray-600 mt-2">
+                <p className="text-xs text-gray-500 mt-2 font-mono uppercase tracking-wider">
                   Video processed with object detection bounding boxes
                 </p>
               </div>
@@ -326,15 +326,15 @@ const DetectionResult: React.FC<DetectionResultProps> = ({
       )}
 
       {processingTime !== null && detections.length > 0 && (
-        <div className="mt-4 pt-4 border-t border-gray-200">
-          <div className="grid grid-cols-2 gap-4 text-sm">
+        <div className="mt-4 pt-4 border-t border-surface-border">
+          <div className="grid grid-cols-2 gap-4 text-xs font-mono">
             <div>
-              <span className="text-gray-600">Processing Time:</span>
-              <span className="ml-2 font-medium">{processingTime.toFixed(3)}s</span>
+              <span className="text-gray-500 uppercase tracking-wider">Processing:</span>
+              <span className="ml-2 font-semibold" style={{ color: 'var(--accent)' }}>{processingTime.toFixed(3)}s</span>
             </div>
             <div>
-              <span className="text-gray-600">Objects Detected:</span>
-              <span className="ml-2 font-medium">{detections.length}</span>
+              <span className="text-gray-500 uppercase tracking-wider">Objects:</span>
+              <span className="ml-2 font-semibold" style={{ color: 'var(--accent)' }}>{detections.length}</span>
             </div>
           </div>
         </div>

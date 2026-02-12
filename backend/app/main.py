@@ -9,6 +9,8 @@ import time
 
 from app.config import settings
 from app.api.routes import router
+from app.api.gallery_routes import router as gallery_router
+from app.models.database import init_db
 from app.utils.logger import setup_logging
 
 # Setup logging
@@ -77,7 +79,16 @@ class SafeStaticFiles(StaticFiles):
 app.mount("/static", SafeStaticFiles(directory="static", html=True), name="static")
 
 # Include API routes
-app.include_router(router, prefix="/api", tags=["API"])
+app.include_router(router, prefix="/api", tags=["Detection"])
+app.include_router(gallery_router, prefix="/api/gallery", tags=["Gallery"])
+
+# Initialize database on startup
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database on startup."""
+    logger.info("Initializing database...")
+    await init_db()
+    logger.info("Database initialized successfully")
 
 # Health check endpoint
 @app.get("/health", tags=["Health"])

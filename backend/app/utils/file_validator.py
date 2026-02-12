@@ -14,11 +14,11 @@ async def validate_file(file: UploadFile, allowed_types: list, max_size: int):
             detail="No file provided"
         )
 
-    # Check file size
+    # Check file size (skip if max_size is 0 = no limit)
     file_content = await file.read()
     file_size = len(file_content)
 
-    if file_size > max_size:
+    if max_size > 0 and file_size > max_size:
         max_size_mb = max_size / (1024 * 1024)
         raise HTTPException(
             status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,

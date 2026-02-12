@@ -15,7 +15,7 @@ class Settings(BaseSettings):
 
     # Model settings
     model_cache_dir: str = "./models"
-    max_file_size: int = 50 * 1024 * 1024  # 50MB
+    max_file_size: int = 0  # No limit (local testing)
     supported_image_types: list = ["image/jpeg", "image/png", "image/jpg"]
     supported_video_types: list = ["video/mp4", "video/avi", "video/mov"]
 
