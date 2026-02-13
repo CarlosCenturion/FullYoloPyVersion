@@ -34,7 +34,7 @@ const BBOX_DATA = [
 // ============================================================
 
 function generateEyeParticles(): { positions: Float32Array; targets: Float32Array; sizes: Float32Array; speeds: Float32Array } {
-  const count = 3500
+  const count = 2000
   const positions = new Float32Array(count * 3)
   const targets = new Float32Array(count * 3)
   const sizes = new Float32Array(count)
@@ -58,13 +58,12 @@ function generateEyeParticles(): { positions: Float32Array; targets: Float32Arra
     idx++
   }
 
-  // OUTER EYE SHAPE (almond) - ~800 particles
-  for (let i = 0; i < 800; i++) {
-    const t = (i / 800) * Math.PI * 2
+  // OUTER EYE SHAPE (almond) - ~600 particles
+  for (let i = 0; i < 600; i++) {
+    const t = (i / 600) * Math.PI * 2
     const eyeW = 3.5
     const eyeH = 1.2
     const x = Math.cos(t) * eyeW
-    // Sharpen the eye tips
     const sharpness = Math.pow(Math.abs(Math.sin(t)), 0.7) * Math.sign(Math.sin(t))
     const y = sharpness * eyeH
     const z = (Math.random() - 0.5) * 0.15
@@ -73,14 +72,14 @@ function generateEyeParticles(): { positions: Float32Array; targets: Float32Arra
       x + (Math.random() - 0.5) * jitter,
       y + (Math.random() - 0.5) * jitter,
       z,
-      1.5 + Math.random() * 1.5
+      0.8 + Math.random() * 0.8
     )
   }
 
-  // IRIS - concentric rings (~1200 particles)
-  for (let ring = 0; ring < 6; ring++) {
-    const r = 0.3 + ring * 0.18
-    const pointsInRing = 150 + ring * 30
+  // IRIS - concentric rings (~700 particles, fewer per ring)
+  for (let ring = 0; ring < 5; ring++) {
+    const r = 0.35 + ring * 0.22
+    const pointsInRing = 100 + ring * 20
     for (let i = 0; i < pointsInRing; i++) {
       const angle = (i / pointsInRing) * Math.PI * 2 + ring * 0.3
       const jitter = 0.04
@@ -88,47 +87,47 @@ function generateEyeParticles(): { positions: Float32Array; targets: Float32Arra
         Math.cos(angle) * r + (Math.random() - 0.5) * jitter,
         Math.sin(angle) * r + (Math.random() - 0.5) * jitter,
         (Math.random() - 0.5) * 0.1,
-        1.0 + Math.random() * 2.0
+        0.5 + Math.random() * 0.8
       )
     }
   }
 
-  // PUPIL - dense cluster at center (~500 particles)
-  for (let i = 0; i < 500; i++) {
-    const angle = Math.random() * Math.PI * 2
-    const r = Math.random() * 0.25
+  // PUPIL - sparse ring at center (~80 particles, NOT dense cluster)
+  for (let i = 0; i < 80; i++) {
+    const angle = (i / 80) * Math.PI * 2
+    const r = 0.08 + Math.random() * 0.18
     add(
       Math.cos(angle) * r,
       Math.sin(angle) * r,
       (Math.random() - 0.5) * 0.08,
-      2.0 + Math.random() * 3.0
+      0.6 + Math.random() * 0.8
     )
   }
 
-  // CIRCUIT LINES from center outward (~400 particles)
+  // CIRCUIT LINES from center outward (~320 particles)
   const lineAngles = [0, 45, 90, 135, 180, 225, 270, 315]
   for (const deg of lineAngles) {
     const rad = (deg * Math.PI) / 180
-    for (let j = 0; j < 50; j++) {
-      const dist = 0.3 + (j / 50) * 1.5
+    for (let j = 0; j < 40; j++) {
+      const dist = 0.3 + (j / 40) * 1.5
       add(
         Math.cos(rad) * dist,
         Math.sin(rad) * dist,
         0,
-        0.8 + Math.random() * 0.5
+        0.5 + Math.random() * 0.4
       )
     }
   }
 
-  // Fill remaining with extra iris detail
+  // Fill remaining with sparse iris detail
   while (idx < count) {
     const angle = Math.random() * Math.PI * 2
-    const r = 0.2 + Math.random() * 1.2
+    const r = 0.4 + Math.random() * 1.2
     add(
       Math.cos(angle) * r + (Math.random() - 0.5) * 0.05,
       Math.sin(angle) * r + (Math.random() - 0.5) * 0.05,
       (Math.random() - 0.5) * 0.1,
-      1.0 + Math.random() * 1.5
+      0.4 + Math.random() * 0.6
     )
   }
 
@@ -222,8 +221,8 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
     const scene = new THREE.Scene()
 
     const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100)
-    camera.position.set(0, 0, 6)
-    camera.lookAt(0, 0, 0)
+    camera.position.set(0, 0.6, 6)
+    camera.lookAt(0, 0.3, 0)
 
     // ==========================================
     // EYE PARTICLES
@@ -285,16 +284,13 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
 
           // Size with attenuation
           float sizeBase = aSize * uPixelRatio;
-          gl_PointSize = sizeBase * (300.0 / -mvPos.z);
+          gl_PointSize = sizeBase * (150.0 / -mvPos.z);
 
           // Scan line brightness boost
           float scanDist = abs(pos.y - uScanY);
-          float scanBoost = smoothstep(0.8, 0.0, scanDist) * 2.0;
+          float scanBoost = smoothstep(0.6, 0.0, scanDist) * 0.4;
 
-          // Pupil particles are brighter
-          float pupilBoost = dist < 0.25 ? 1.5 : 1.0;
-
-          vBrightness = (0.4 + 0.6 * ep) * pupilBoost + scanBoost;
+          vBrightness = (0.25 + 0.35 * ep) + scanBoost;
         }
       `,
       fragmentShader: `
@@ -304,19 +300,16 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
         varying float vDist;
 
         void main() {
-          // Circular point
           vec2 center = gl_PointCoord - 0.5;
           float d = length(center);
           if (d > 0.5) discard;
 
-          // Soft glow falloff
-          float alpha = smoothstep(0.5, 0.1, d);
+          // Very soft, transparent particles
+          float alpha = smoothstep(0.5, 0.2, d) * 0.35;
           float brightness = vBrightness * uBrightness;
 
-          // Core is white-hot, outer is colored
-          vec3 color = mix(uColor, vec3(1.0), smoothstep(0.3, 0.0, d) * 0.5);
-
-          gl_FragColor = vec4(color * brightness, alpha * brightness);
+          // Pure accent color - no white mixing
+          gl_FragColor = vec4(uColor * brightness, alpha * brightness);
         }
       `,
       transparent: true,
@@ -406,23 +399,30 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
       }
     })
 
-    // Title letters appear
-    tl.from('.intro-letter', {
-      opacity: 0,
-      y: 30,
-      rotateX: -90,
-      stagger: 0.03,
-      duration: 0.4,
-      ease: 'back.out(2)',
-    }, 4.0)
+    // Glitch title appears - quick glitch-in
+    tl.to('.intro-glitch-title', {
+      opacity: 1,
+      duration: 0.1,
+      ease: 'none',
+    }, 3.5)
 
-    // Subtitle
-    tl.from('.intro-subtitle', {
+    // Brief scale punch on appear
+    tl.from('.intro-glitch-title', {
+      scale: 1.1,
+      duration: 0.3,
+      ease: 'power2.out',
+    }, 3.5)
+
+    // Subtitle fades in
+    tl.fromTo('.intro-subtitle', {
       opacity: 0,
-      y: 15,
+      y: 10,
+    }, {
+      opacity: 0.8,
+      y: 0,
       duration: 0.6,
       ease: 'power2.out',
-    }, 4.8)
+    }, 4.2)
 
     // Fade out bounding boxes
     tl.to('.bbox-container', {
@@ -489,7 +489,7 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
       dustPos.needsUpdate = true
 
       // Subtle camera breathing
-      camera.position.z = 6 + Math.sin(elapsed * 0.5) * 0.1
+      camera.position.z = 6 + Math.sin(elapsed * 0.5) * 0.08
 
       renderer.render(scene, camera)
       animFrameRef.current = requestAnimationFrame(animate)
@@ -647,34 +647,39 @@ const IntroAnimation: React.FC<IntroAnimationProps> = ({ onComplete }) => {
         ))}
       </div>
 
-      {/* Title Overlay */}
-      <div className="absolute bottom-[14%] w-full text-center pointer-events-none">
-        <div className="mb-2" style={{ perspective: '600px' }}>
-          {titleText.split('').map((char, i) => (
-            <span
-              key={i}
-              className="intro-letter inline-block font-heading font-bold tracking-[0.15em] glow-text"
+      {/* Glitch Title - centered over the eye */}
+      <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+        <div className="intro-glitch-title text-center" style={{ opacity: 0, marginTop: '-2%' }}>
+          <div className="glitch-wrapper glitch-flicker">
+            <h1
+              className="glitch-text font-heading font-black uppercase"
+              data-text={titleText}
               style={{
                 color: 'var(--accent, #00ffcc)',
-                fontSize: 'clamp(1.2rem, 4vw, 2.5rem)',
-                minWidth: char === ' ' ? '0.4em' : undefined,
-                transformStyle: 'preserve-3d',
+                fontSize: 'clamp(2rem, 6vw, 4.5rem)',
+                letterSpacing: '0.15em',
+                lineHeight: 1.1,
+                textShadow: `0 0 30px var(--accent-border, rgba(0,255,204,0.5)),
+                             0 0 60px var(--accent-muted, rgba(0,255,204,0.2)),
+                             0 0 100px var(--accent-muted, rgba(0,255,204,0.1))`,
               }}
             >
-              {char === ' ' ? '\u00A0' : char}
-            </span>
-          ))}
+              {titleText}
+            </h1>
+            <div className="glitch-lines" />
+          </div>
+          <p
+            className="intro-subtitle font-mono uppercase tracking-[0.5em] mt-4"
+            style={{
+              color: 'var(--accent, #00ffcc)',
+              fontSize: 'clamp(0.6rem, 1.3vw, 0.85rem)',
+              opacity: 0,
+              textShadow: '0 0 15px var(--accent-border, rgba(0,255,204,0.4))',
+            }}
+          >
+            Advanced Object Detection System
+          </p>
         </div>
-        <p
-          className="intro-subtitle font-mono uppercase tracking-[0.5em] opacity-0"
-          style={{
-            color: 'var(--accent, #00ffcc)',
-            fontSize: 'clamp(0.55rem, 1.2vw, 0.75rem)',
-            opacity: 0,
-          }}
-        >
-          Advanced Object Detection System
-        </p>
       </div>
 
       {/* Skip hint */}

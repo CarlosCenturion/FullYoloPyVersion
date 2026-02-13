@@ -61,7 +61,7 @@ class SnapshotService:
 
             class_name = det["class"]
 
-            # Minimum confidence filter (90%)
+            # Minimum confidence filter
             if det["confidence"] < settings.snapshot_min_confidence:
                 continue
 
@@ -69,14 +69,14 @@ class SnapshotService:
             if filter_classes and class_name.lower() not in filter_classes:
                 continue
 
-            # Tracking dedup
+            # Tracking dedup: skip objects already snapshotted (by track_id).
+            # If track_id is None (tracker hasn't assigned one yet), allow the snapshot.
             if use_tracking:
                 track_id = det.get("track_id")
-                if track_id is None:
-                    continue
-                if track_id in self._seen_track_ids:
-                    continue
-                self._seen_track_ids.add(track_id)
+                if track_id is not None:
+                    if track_id in self._seen_track_ids:
+                        continue
+                    self._seen_track_ids.add(track_id)
 
             # Crop with bounds checking
             x1, y1, x2, y2 = det["bbox"]

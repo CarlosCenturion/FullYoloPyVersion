@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     snapshot_max_width: int = 300
     snapshot_jpeg_quality: int = 85
     snapshot_max_per_request: int = 50
-    snapshot_min_confidence: float = 0.75
+    snapshot_min_confidence: float = 0.50
 
     # Logging
     log_level: str = "INFO"

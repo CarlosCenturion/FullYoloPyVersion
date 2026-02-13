@@ -253,3 +253,118 @@
     font-family: 'Rajdhani', system-ui, sans-serif;
   }
 }
+
+/* ========================================
+   INTRO GLITCH EFFECT
+   ======================================== */
+
+.glitch-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.glitch-text {
+  position: relative;
+  animation: glitch-skew 4s infinite linear alternate-reverse;
+}
+
+.glitch-text::before,
+.glitch-text::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+}
+
+.glitch-text::before {
+  color: var(--accent, #00ffcc);
+  animation: glitch-before 3s infinite linear alternate-reverse;
+  clip-path: polygon(0 0, 100% 0, 100% 35%, 0 35%);
+  text-shadow: -2px 0 #ff00ff;
+}
+
+.glitch-text::after {
+  color: var(--accent, #00ffcc);
+  animation: glitch-after 2s infinite linear alternate-reverse;
+  clip-path: polygon(0 65%, 100% 65%, 100% 100%, 0 100%);
+  text-shadow: 2px 0 #00ffff;
+}
+
+@keyframes glitch-before {
+  0%, 64%, 100% {
+    transform: translate(0);
+  }
+  33% {
+    transform: translate(-3px, -1px);
+  }
+  66% {
+    transform: translate(3px, 1px);
+  }
+}
+
+@keyframes glitch-after {
+  0%, 64%, 100% {
+    transform: translate(0);
+  }
+  33% {
+    transform: translate(2px, 1px);
+  }
+  66% {
+    transform: translate(-2px, -1px);
+  }
+}
+
+@keyframes glitch-skew {
+  0%, 87%, 100% {
+    transform: skewX(0deg);
+  }
+  88% {
+    transform: skewX(-1deg);
+  }
+  89% {
+    transform: skewX(2deg);
+  }
+  90% {
+    transform: skewX(-0.5deg);
+  }
+  91% {
+    transform: skewX(0deg);
+  }
+}
+
+/* Glitch horizontal scan lines */
+.glitch-lines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent,
+    transparent 2px,
+    rgba(0, 255, 204, 0.015) 2px,
+    rgba(0, 255, 204, 0.015) 4px
+  );
+  animation: glitch-lines-shift 0.5s infinite steps(8);
+}
+
+@keyframes glitch-lines-shift {
+  0% { transform: translateY(0); }
+  100% { transform: translateY(4px); }
+}
+
+/* Glitch flicker */
+.glitch-flicker {
+  animation: glitch-flicker-anim 5s infinite;
+}
+
+@keyframes glitch-flicker-anim {
+  0%, 100% { opacity: 1; }
+  92% { opacity: 1; }
+  93% { opacity: 0.7; }
+  94% { opacity: 1; }
+  95% { opacity: 0.8; }
+  96% { opacity: 1; }
+}

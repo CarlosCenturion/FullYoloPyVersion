@@ -20,11 +20,13 @@ export interface Snapshot {
   bbox: [number, number, number, number]
   track_id?: number
   timestamp: number
+  videoTime?: number  // video.currentTime when snapshot was captured (client-side)
 }
 
 export interface SnapshotConfig {
   enabled: boolean
-  classes: string[]   // empty array = all classes
+  classes: string[]        // empty array = all classes
+  minConfidence?: number   // client-side display filter (0.0-1.0)
 }
 
 export interface DetectionResult {

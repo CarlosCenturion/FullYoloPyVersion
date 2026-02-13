@@ -49,19 +49,17 @@ const THEMES: { id: ThemeType; label: string; color: string }[] = [
 
 function App() {
   const [activeTab, setActiveTab] = useState<TabType>('webcam')
-  const [selectedModel, setSelectedModel] = useState('yolov8n')
-  const [sensitivity, setSensitivity] = useState(7)
-  const [quality, setQuality] = useState<QualityLevel>('balanced')
+  const [selectedModel, setSelectedModel] = useState('yolov8s')
+  const [sensitivity, setSensitivity] = useState(5)
+  const [quality, setQuality] = useState<QualityLevel>('quality')
   const [models, setModels] = useState<ModelInfo[]>([])
   const [showHelp, setShowHelp] = useState(false)
-  const [showIntro, setShowIntro] = useState(() => {
-    return !sessionStorage.getItem('charly-intro-seen')
-  })
+  const [showIntro, setShowIntro] = useState(true)
   const [theme, setTheme] = useState<ThemeType>(() => {
     return (localStorage.getItem('charly-theme') as ThemeType) || 'cyan'
   })
 
-  const [snapshotConfig, setSnapshotConfig] = useState<SnapshotConfig>({ enabled: false, classes: [] })
+  const [snapshotConfig, setSnapshotConfig] = useState<SnapshotConfig>({ enabled: true, classes: ['person'], minConfidence: 0.75 })
 
   const {
     detections,
@@ -118,7 +116,6 @@ function App() {
 
   const handleIntroComplete = useCallback(() => {
     setShowIntro(false)
-    sessionStorage.setItem('charly-intro-seen', 'true')
   }, [])
 
   const sensitivityLabel = sensitivity <= 3 ? 'LOW' : sensitivity <= 6 ? 'MED' : sensitivity <= 8 ? 'HIGH' : 'MAX'
@@ -350,6 +347,7 @@ function App() {
               selectedModel={selectedModel}
               detectionConfig={detectionConfig}
               snapshotConfig={snapshotConfig}
+              onSnapshotConfigChange={setSnapshotConfig}
             />
           ) : (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
