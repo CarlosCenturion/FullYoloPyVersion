@@ -25,3 +25,7 @@ loguru
 # Database
 sqlalchemy
 aiosqlite
+
+# Face Recognition (FIND SUBJECT)
+deepface
+tf-keras

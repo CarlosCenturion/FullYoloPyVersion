@@ -21,6 +21,8 @@ export interface Snapshot {
   track_id?: number
   timestamp: number
   videoTime?: number  // video.currentTime when snapshot was captured (client-side)
+  face_match?: boolean       // true if flagged by FIND SUBJECT
+  face_similarity?: number   // similarity score if face matched
 }
 
 export interface SnapshotConfig {
@@ -148,4 +150,38 @@ export interface CreateGalleryItemRequest {
   description?: string
   tags?: string[]
   save_to_gallery: boolean
+}
+
+// Face Recognition (FIND SUBJECT) types
+export interface FaceMatch {
+  bbox: [number, number, number, number]  // [x1, y1, x2, y2]
+  similarity: number                       // 0.0 - 1.0
+  is_match: boolean
+}
+
+export interface FaceMatchResult {
+  matches: FaceMatch[]
+  faces_detected: number
+  processing_time: number
+  threshold: number
+}
+
+export interface FaceReferenceResult {
+  success: boolean
+  embedding_size: number
+  model: string
+  face_area: { x: number; y: number; w: number; h: number }
+  thumbnail_url: string
+  processing_time: number
+  faces_found: number
+  threshold: number
+  reference_count: number
+  all_thumbnails: string[]
+}
+
+export interface FaceStatus {
+  has_reference: boolean
+  reference_count: number
+  threshold: number
+  all_thumbnails: string[]
 }

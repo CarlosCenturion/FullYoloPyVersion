@@ -5,7 +5,17 @@
       "Bash(npx tsc:*)",
       "Bash(del \"e:\\\\Proyectos\\\\FullYoloPyVersion\\\\frontend\\\\src\\\\components\\\\AdvancedConfig.tsx\")",
       "Bash(npm run build:*)",
-      "Bash(xargs:*)"
+      "Bash(xargs:*)",
+      "Bash(python:*)",
+      "Bash(pip install:*)",
+      "Bash(npm run dev:*)",
+      "Bash(curl:*)",
+      "Bash(C:Python313python.exe -c \"import deepface; print\\(deepface.__version__\\)\")",
+      "Bash(\"C:/Python313/python.exe\" -c:*)",
+      "Bash(\"e:/Proyectos/FullYoloPyVersion/backend/venv/Scripts/pip.exe\" install deepface tf-keras)",
+      "Bash(\"e:/Proyectos/FullYoloPyVersion/backend/venv/Scripts/python.exe\" -c:*)",
+      "Bash(netstat:*)",
+      "Bash(./venv/Scripts/python.exe -m uvicorn:*)"
     ]
   }
 }

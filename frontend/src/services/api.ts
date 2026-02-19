@@ -1,5 +1,5 @@
 import axios, { AxiosResponse } from 'axios'
-import { ModelInfo, DetectionResult, ApiError, DetectionConfig, SnapshotConfig } from '../types'
+import { ModelInfo, DetectionResult, ApiError, DetectionConfig, SnapshotConfig, FaceReferenceResult, FaceMatchResult, FaceStatus } from '../types'
 
 interface GalleryOptions {
   saveToGallery: boolean
@@ -201,6 +201,51 @@ export const detectionApi = {
   healthCheck: async () => {
     const response = await api.get('/health')
     return response.data
+  },
+
+  // === FIND SUBJECT (Face Recognition) ===
+
+  uploadReferenceFace: async (file: File, threshold?: number): Promise<FaceReferenceResult> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    if (threshold !== undefined) {
+      formData.append('threshold', threshold.toString())
+    }
+    const response = await api.post('/api/face/reference', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  matchFacesInFrame: async (file: File): Promise<FaceMatchResult> => {
+    const formData = new FormData()
+    formData.append('file', file)
+    const response = await api.post('/api/face/match', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
+    return response.data
+  },
+
+  clearReferenceFace: async (): Promise<void> => {
+    await api.delete('/api/face/reference')
+  },
+
+  removeReferenceFace: async (index: number): Promise<{ reference_count: number; all_thumbnails: string[] }> => {
+    const response = await api.delete(`/api/face/reference/${index}`)
+    return response.data
+  },
+
+  getFaceStatus: async (): Promise<FaceStatus> => {
+    const response = await api.get('/api/face/status')
+    return response.data
+  },
+
+  updateFaceThreshold: async (threshold: number): Promise<void> => {
+    const formData = new FormData()
+    formData.append('threshold', threshold.toString())
+    await api.post('/api/face/threshold', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
   },
 }
 

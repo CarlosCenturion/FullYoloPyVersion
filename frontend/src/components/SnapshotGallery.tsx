@@ -128,12 +128,14 @@ const SnapshotGallery: React.FC<SnapshotGalleryProps> = ({ snapshots, onClear, o
           <button
             key={`${snap.snapshot_url}-${index}`}
             onClick={() => handleThumbnailClick(snap, index)}
-            className="group relative bg-surface-secondary border border-surface-border overflow-hidden hover:border-accent transition-colors w-full"
+            className="group relative bg-surface-secondary border overflow-hidden hover:border-accent transition-colors w-full"
             style={{
               borderRadius: '2px',
               marginBottom: '8px',
               breakInside: 'avoid',
               display: 'inline-block',
+              borderColor: snap.face_match ? 'rgba(255, 0, 255, 0.5)' : undefined,
+              boxShadow: snap.face_match ? '0 0 6px rgba(255, 0, 255, 0.2)' : undefined,
             }}
             title={onSnapshotClick
               ? `Click: seek to ${snap.videoTime !== undefined ? formatVideoTime(snap.videoTime) : 'position'} | Double-click: enlarge`
@@ -172,6 +174,19 @@ const SnapshotGallery: React.FC<SnapshotGalleryProps> = ({ snapshots, onClear, o
                 style={{ backgroundColor: 'var(--accent-muted)', color: 'var(--accent)' }}
               >
                 #{snap.track_id}
+              </div>
+            )}
+            {/* Face match badge */}
+            {snap.face_match && (
+              <div
+                className="absolute bottom-6 right-0 px-1 py-0.5 text-[9px] font-mono font-bold animate-pulse"
+                style={{
+                  backgroundColor: 'rgba(255, 0, 255, 0.8)',
+                  color: '#ffffff',
+                  borderRadius: '2px 0 0 0',
+                }}
+              >
+                MATCH {snap.face_similarity ? `${(snap.face_similarity * 100).toFixed(0)}%` : ''}
               </div>
             )}
           </button>
@@ -227,6 +242,14 @@ const SnapshotGallery: React.FC<SnapshotGalleryProps> = ({ snapshots, onClear, o
                 <div>
                   <span className="text-gray-500 uppercase tracking-wider">Video @:</span>
                   <span className="ml-2 font-semibold" style={{ color: 'var(--accent)' }}>{formatVideoTime(selected.videoTime)}</span>
+                </div>
+              )}
+              {selected.face_match && (
+                <div>
+                  <span className="text-gray-500 uppercase tracking-wider">Face:</span>
+                  <span className="ml-2 font-semibold" style={{ color: '#ff00ff' }}>
+                    MATCH {selected.face_similarity ? `${(selected.face_similarity * 100).toFixed(0)}%` : ''}
+                  </span>
                 </div>
               )}
             </div>

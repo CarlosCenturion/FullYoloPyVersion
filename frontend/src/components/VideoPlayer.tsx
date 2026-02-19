@@ -1,7 +1,7 @@
 import React, { useRef, useState, useCallback, useEffect, useMemo } from 'react'
-import { Upload, Play, Pause, Square, Video, X, AlertCircle, SkipBack, SkipForward, Eye, EyeOff, Hash, RotateCcw, Crop, SlidersHorizontal, Maximize2, Minimize2, Fingerprint } from 'lucide-react'
+import { Upload, Play, Pause, Square, Video, X, AlertCircle, SkipBack, SkipForward, Eye, EyeOff, Hash, RotateCcw, Crop, SlidersHorizontal, Maximize2, Minimize2, Fingerprint, UserSearch, Target } from 'lucide-react'
 import { detectionApi } from '../services/api'
-import { Detection, DetectionConfig, Snapshot, SnapshotConfig } from '../types'
+import { Detection, DetectionConfig, Snapshot, SnapshotConfig, FaceMatch, FaceMatchResult } from '../types'
 import SnapshotGallery from './SnapshotGallery'
 
 interface VideoPlayerProps {
@@ -38,6 +38,12 @@ const getEmoji = (cls: string): string => {
     if (lower.includes(key) || key.includes(lower)) return emoji
   }
   return '📦'
+}
+
+const bboxOverlap = (a: [number, number, number, number], b: [number, number, number, number]): boolean => {
+  const fcx = (b[0] + b[2]) / 2
+  const fcy = (b[1] + b[3]) / 2
+  return fcx >= a[0] && fcx <= a[2] && fcy >= a[1] && fcy <= a[3]
 }
 
 const VideoPlayer: React.FC<VideoPlayerProps> = ({
@@ -91,12 +97,27 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
   // Filter to show only snapshots with track_id
   const [idOnlyFilter, setIdOnlyFilter] = useState(false)
 
+  // === FIND SUBJECT state ===
+  const [findSubjectEnabled, setFindSubjectEnabled] = useState(false)
+  const [showFindSubject, setShowFindSubject] = useState(true)
+  const [referenceThumbnails, setReferenceThumbnails] = useState<string[]>([])
+  const [faceThreshold, setFaceThreshold] = useState(0.55)
+  const [faceMatches, setFaceMatches] = useState<FaceMatch[]>([])
+  const [faceProcessingTime, setFaceProcessingTime] = useState<number | null>(null)
+  const [totalFaceMatches, setTotalFaceMatches] = useState(0)
+  const [uploadingReference, setUploadingReference] = useState(false)
+  const [faceError, setFaceError] = useState<string | null>(null)
+  const findSubjectEnabledRef = useRef(false)
+  const faceFileInputRef = useRef<HTMLInputElement>(null)
+  const pendingFaceRequestRef = useRef(false)
+
   const videoTypes = ['video/mp4', 'video/avi', 'video/mov']
 
   const trackingEnabledRef = useRef(false)
 
   useEffect(() => { disabledClassesRef.current = disabledClasses }, [disabledClasses])
   useEffect(() => { trackingEnabledRef.current = trackingEnabled }, [trackingEnabled])
+  useEffect(() => { findSubjectEnabledRef.current = findSubjectEnabled }, [findSubjectEnabled])
   useEffect(() => { selectedModelRef.current = selectedModel }, [selectedModel])
   useEffect(() => { detectionConfigRef.current = detectionConfig }, [detectionConfig])
   useEffect(() => { snapshotConfigRef.current = snapshotConfig }, [snapshotConfig])
@@ -276,6 +297,57 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     ctx.fillText(label, sx1 + 6, sy1 - 7)
   }, [getOverlayScaling])
 
+  const drawFaceMatchBoxes = useCallback((matches: FaceMatch[]) => {
+    const overlay = overlayCanvasRef.current
+    if (!overlay) return
+    const ctx = overlay.getContext('2d')
+    if (!ctx) return
+
+    const scaling = getOverlayScaling()
+    if (!scaling) return
+    const { scaleX, scaleY, offsetX, offsetY } = scaling
+
+    for (const match of matches) {
+      const [x1, y1, x2, y2] = match.bbox
+      const sx1 = x1 * scaleX + offsetX
+      const sy1 = y1 * scaleY + offsetY
+      const sx2 = x2 * scaleX + offsetX
+      const sy2 = y2 * scaleY + offsetY
+
+      if (match.is_match) {
+        // MATCH: magenta dashed border with glow
+        ctx.save()
+        ctx.strokeStyle = '#ff00ff'
+        ctx.lineWidth = 3
+        ctx.setLineDash([6, 3])
+        ctx.strokeRect(sx1, sy1, sx2 - sx1, sy2 - sy1)
+        ctx.setLineDash([])
+
+        ctx.shadowColor = '#ff00ff'
+        ctx.shadowBlur = 8
+        ctx.strokeStyle = '#ff00ff'
+        ctx.lineWidth = 2
+        ctx.strokeRect(sx1, sy1, sx2 - sx1, sy2 - sy1)
+        ctx.restore()
+
+        const label = `MATCH ${(match.similarity * 100).toFixed(0)}%`
+        ctx.font = 'bold 13px "JetBrains Mono", monospace'
+        const tm = ctx.measureText(label)
+        ctx.fillStyle = '#ff00ff'
+        ctx.fillRect(sx1, sy1 - 20, tm.width + 8, 20)
+        ctx.fillStyle = '#ffffff'
+        ctx.fillText(label, sx1 + 4, sy1 - 5)
+      } else {
+        // NON-MATCH face: subtle grey outline
+        ctx.strokeStyle = 'rgba(128, 128, 128, 0.4)'
+        ctx.lineWidth = 1
+        ctx.setLineDash([4, 4])
+        ctx.strokeRect(sx1, sy1, sx2 - sx1, sy2 - sy1)
+        ctx.setLineDash([])
+      }
+    }
+  }, [getOverlayScaling])
+
   const captureAndDetect = useCallback(async () => {
     if (pendingRequestRef.current) return
     if (!videoRef.current || !captureCanvasRef.current) return
@@ -306,9 +378,22 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         const config = detectionConfigRef.current
         const snapCfg = snapshotConfigRef.current
         const useTracking = trackingEnabledRef.current || snapCfg.enabled
-        const result = useTracking
-          ? await detectionApi.detectWithTracking(file, model, config, snapCfg)
-          : await detectionApi.detectImage(file, model, config, undefined, snapCfg)
+        const doFaceMatch = findSubjectEnabledRef.current && !pendingFaceRequestRef.current
+
+        // Launch YOLO request
+        const yoloPromise = useTracking
+          ? detectionApi.detectWithTracking(file, model, config, snapCfg)
+          : detectionApi.detectImage(file, model, config, undefined, snapCfg)
+
+        // Launch face matching in parallel if enabled
+        let facePromise: Promise<FaceMatchResult> | null = null
+        if (doFaceMatch) {
+          const faceFile = new File([blob], 'face-frame.jpg', { type: 'image/jpeg' })
+          pendingFaceRequestRef.current = true
+          facePromise = detectionApi.matchFacesInFrame(faceFile)
+        }
+
+        const result = await yoloPromise
 
         // Discard stale results from a previous video
         if (sessionIdRef.current !== currentSession) return
@@ -343,13 +428,51 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
 
           drawBoundingBoxes(result.detections, disabledClassesRef.current)
         }
+
+        // Await face result (non-blocking relative to YOLO)
+        if (facePromise) {
+          try {
+            const faceResult = await facePromise
+            if (sessionIdRef.current !== currentSession) return
+
+            setFaceMatches(faceResult.matches)
+            setFaceProcessingTime(faceResult.processing_time)
+
+            const matchCount = faceResult.matches.filter(m => m.is_match).length
+            if (matchCount > 0) {
+              setTotalFaceMatches(prev => prev + matchCount)
+            }
+
+            // Draw face match boxes on overlay (on top of YOLO boxes)
+            drawFaceMatchBoxes(faceResult.matches)
+
+            // Tag person snapshots that overlap with matched face bboxes
+            if (result.success && result.snapshots && faceResult.matches.some(m => m.is_match)) {
+              const matchedFaceBboxes = faceResult.matches.filter(m => m.is_match).map(m => m.bbox)
+              const maxSimilarity = Math.max(...faceResult.matches.filter(m => m.is_match).map(m => m.similarity))
+              setVideoSnapshots(prev => prev.map(snap => {
+                if (snap.class === 'person' && snap.videoTime === captureVideoTime) {
+                  const overlaps = matchedFaceBboxes.some(fb => bboxOverlap(snap.bbox, fb))
+                  if (overlaps) {
+                    return { ...snap, face_match: true, face_similarity: maxSimilarity }
+                  }
+                }
+                return snap
+              }))
+            }
+          } catch (err) {
+            console.warn('Face matching failed:', err)
+          } finally {
+            pendingFaceRequestRef.current = false
+          }
+        }
       } catch (err) {
         console.warn('Frame detection failed:', err)
       } finally {
         pendingRequestRef.current = false
       }
     }, 'image/jpeg', 0.7)
-  }, [drawBoundingBoxes, updateTrackingCounts])
+  }, [drawBoundingBoxes, drawFaceMatchBoxes, updateTrackingCounts])
 
   useEffect(() => {
     if (isDetecting && isPlaying) {
@@ -414,6 +537,9 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setVideoSnapshots([])
     setHighlightedSnapshot(null)
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
+    setFaceMatches([])
+    setTotalFaceMatches(0)
+    setFaceProcessingTime(null)
   }
 
   const handleDrop = (e: React.DragEvent) => {
@@ -476,6 +602,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setHighlightedSnapshot(null)
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
     resetTracking()
+    setFaceMatches([])
+    setTotalFaceMatches(0)
 
     const overlay = overlayCanvasRef.current
     if (overlay) {
@@ -499,6 +627,67 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     setHighlightedSnapshot(null)
     if (highlightTimeoutRef.current) clearTimeout(highlightTimeoutRef.current)
     if (fileInputRef.current) fileInputRef.current.value = ''
+    setFaceMatches([])
+    setTotalFaceMatches(0)
+    setFaceProcessingTime(null)
+  }
+
+  // === FIND SUBJECT handlers ===
+  const handleReferenceUpload = async (file: File) => {
+    setUploadingReference(true)
+    setFaceError(null)
+    try {
+      const result = await detectionApi.uploadReferenceFace(file, faceThreshold)
+      const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000'
+      setReferenceThumbnails(result.all_thumbnails.map(t => `${baseUrl}${t}`))
+      setFaceThreshold(result.threshold)
+      setFindSubjectEnabled(true)
+    } catch (err: any) {
+      setFaceError(err.message || 'Failed to process reference image')
+    } finally {
+      setUploadingReference(false)
+      if (faceFileInputRef.current) faceFileInputRef.current.value = ''
+    }
+  }
+
+  const removeReference = async (index: number) => {
+    try {
+      const result = await detectionApi.removeReferenceFace(index)
+      const baseUrl = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8000'
+      setReferenceThumbnails(result.all_thumbnails.map(t => `${baseUrl}${t}`))
+      if (result.reference_count === 0) {
+        setFindSubjectEnabled(false)
+        setFaceMatches([])
+        setTotalFaceMatches(0)
+        setFaceProcessingTime(null)
+      }
+    } catch (err) {
+      console.warn('Failed to remove reference:', err)
+    }
+  }
+
+  const clearReference = async () => {
+    try {
+      await detectionApi.clearReferenceFace()
+    } catch (err) {
+      console.warn('Failed to clear reference on server:', err)
+    }
+    setReferenceThumbnails([])
+    setFindSubjectEnabled(false)
+    setFaceMatches([])
+    setTotalFaceMatches(0)
+    setFaceProcessingTime(null)
+    setFaceError(null)
+    if (faceFileInputRef.current) faceFileInputRef.current.value = ''
+  }
+
+  const handleThresholdChange = async (value: number) => {
+    setFaceThreshold(value)
+    try {
+      await detectionApi.updateFaceThreshold(value)
+    } catch (err) {
+      console.warn('Failed to update threshold on server:', err)
+    }
   }
 
   const seekRelative = (seconds: number) => {
@@ -792,6 +981,11 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                   {visibleDetections.length} object{visibleDetections.length !== 1 ? 's' : ''} detected
                 </span>
               )}
+              {faceMatches.filter(m => m.is_match).length > 0 && (
+                <span style={{ color: '#ff00ff' }} className="font-semibold animate-pulse">
+                  {faceMatches.filter(m => m.is_match).length} face match{faceMatches.filter(m => m.is_match).length !== 1 ? 'es' : ''}
+                </span>
+              )}
             </div>
 
             {/* Unique object tracking */}
@@ -868,6 +1062,211 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
                       Start detection to begin tracking unique objects via ByteTrack (server-side).
                     </p>
                   )}
+                </div>
+              )}
+            </div>
+
+            {/* FIND SUBJECT Panel */}
+            <div className="border border-surface-border" style={{ borderRadius: '3px' }}>
+              <div className="flex items-center justify-between px-4 py-3">
+                <div className="flex items-center space-x-2">
+                  <UserSearch className="w-4 h-4" style={{ color: findSubjectEnabled ? '#ff00ff' : 'var(--accent)' }} />
+                  <span className="text-xs font-semibold text-gray-300 uppercase tracking-wider font-body">Find Subject</span>
+                  {referenceThumbnails.length > 0 && (
+                    <span
+                      className="text-xs font-mono px-1.5 py-0.5"
+                      style={{
+                        color: '#ff00ff',
+                        backgroundColor: 'rgba(255, 0, 255, 0.1)',
+                        border: '1px solid rgba(255, 0, 255, 0.3)',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      {referenceThumbnails.length} ref{referenceThumbnails.length !== 1 ? 's' : ''}
+                    </span>
+                  )}
+                  {totalFaceMatches > 0 && (
+                    <span
+                      className="text-xs font-mono px-1.5 py-0.5 animate-pulse"
+                      style={{
+                        color: '#ff00ff',
+                        backgroundColor: 'rgba(255, 0, 255, 0.1)',
+                        border: '1px solid rgba(255, 0, 255, 0.3)',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      {totalFaceMatches} match{totalFaceMatches !== 1 ? 'es' : ''}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center space-x-2">
+                  {referenceThumbnails.length > 0 && (
+                    <button
+                      onClick={clearReference}
+                      className="flex items-center px-2 py-1 text-xs font-semibold text-gray-400 bg-surface-tertiary border border-surface-border uppercase tracking-wider font-body hover:text-red-400 transition-colors"
+                      style={{ borderRadius: '2px' }}
+                      title="Clear all references"
+                    >
+                      <X className="w-3 h-3 mr-1" />
+                      Clear
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setShowFindSubject(prev => !prev)}
+                    className="text-xs text-gray-600 font-mono uppercase"
+                  >
+                    {showFindSubject ? 'Hide' : 'Show'}
+                  </button>
+                </div>
+              </div>
+
+              {showFindSubject && (
+                <div className="px-4 pb-4 border-t border-surface-border">
+                  <div className="mt-3 space-y-3">
+                    {/* Reference thumbnails grid */}
+                    {referenceThumbnails.length > 0 && (
+                      <div className="flex flex-wrap gap-2">
+                        {referenceThumbnails.map((thumb, i) => (
+                          <div key={thumb} className="relative group">
+                            <img
+                              src={thumb}
+                              alt={`Reference ${i + 1}`}
+                              className="w-12 h-12 object-cover border"
+                              style={{
+                                borderColor: findSubjectEnabled ? '#ff00ff' : '#30363d',
+                                borderRadius: '2px',
+                                boxShadow: findSubjectEnabled ? '0 0 6px rgba(255, 0, 255, 0.3)' : 'none',
+                              }}
+                            />
+                            <button
+                              onClick={() => removeReference(i)}
+                              className="absolute -top-1 -right-1 w-4 h-4 flex items-center justify-center bg-red-600 text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                              style={{ borderRadius: '2px', fontSize: '10px', lineHeight: 1 }}
+                              title="Remove this reference"
+                            >
+                              <X className="w-2.5 h-2.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Upload button (always visible to add more) */}
+                    <input
+                      ref={faceFileInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/jpg"
+                      onChange={(e) => {
+                        const files = e.target.files
+                        if (files && files.length > 0) handleReferenceUpload(files[0])
+                      }}
+                      className="hidden"
+                    />
+                    <button
+                      onClick={() => faceFileInputRef.current?.click()}
+                      disabled={uploadingReference}
+                      className="w-full py-3 border-2 border-dashed text-center transition-all hover:border-gray-500"
+                      style={{
+                        borderColor: '#30363d',
+                        borderRadius: '2px',
+                      }}
+                    >
+                      {uploadingReference ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs text-gray-400 font-mono uppercase">Extracting face embedding...</span>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-center gap-2">
+                          <Target className="w-4 h-4 text-gray-600" />
+                          <p className="text-xs text-gray-400 font-body uppercase tracking-wider">
+                            {referenceThumbnails.length === 0 ? 'Upload a reference photo' : 'Add another photo'}
+                          </p>
+                        </div>
+                      )}
+                    </button>
+                    {referenceThumbnails.length === 0 && (
+                      <p className="text-[10px] text-gray-600 font-mono text-center">
+                        Multiple photos improve accuracy across angles & lighting
+                      </p>
+                    )}
+                    {faceError && (
+                      <div className="flex items-center gap-1.5 text-xs text-red-400 font-mono">
+                        <AlertCircle className="w-3 h-3" />
+                        {faceError}
+                      </div>
+                    )}
+
+                    {/* Controls (shown when at least one reference loaded) */}
+                    {referenceThumbnails.length > 0 && (
+                      <>
+                        {/* Enable/disable toggle */}
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <p className="text-xs font-mono uppercase tracking-wider" style={{ color: findSubjectEnabled ? '#ff00ff' : '#8b949e' }}>
+                              {findSubjectEnabled ? 'Scanning active' : 'Scanning paused'}
+                            </p>
+                            {faceProcessingTime !== null && (
+                              <p className="text-[10px] font-mono text-gray-600">
+                                Face scan: {(faceProcessingTime * 1000).toFixed(0)}ms
+                              </p>
+                            )}
+                          </div>
+                          <button
+                            onClick={() => setFindSubjectEnabled(prev => !prev)}
+                            className="relative inline-flex h-5 w-10 items-center transition-colors"
+                            style={{
+                              backgroundColor: findSubjectEnabled ? 'rgba(255, 0, 255, 0.15)' : '#21262d',
+                              border: `1px solid ${findSubjectEnabled ? 'rgba(255, 0, 255, 0.4)' : '#30363d'}`,
+                              borderRadius: '2px',
+                            }}
+                          >
+                            <span
+                              className="inline-block h-3 w-3 transform transition-transform"
+                              style={{
+                                backgroundColor: findSubjectEnabled ? '#ff00ff' : '#484f58',
+                                borderRadius: '1px',
+                                transform: findSubjectEnabled ? 'translateX(22px)' : 'translateX(3px)',
+                              }}
+                            />
+                          </button>
+                        </div>
+
+                        {/* Threshold slider */}
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-gray-500 font-body uppercase tracking-wider whitespace-nowrap">Threshold</span>
+                          <input
+                            type="range"
+                            min={30}
+                            max={90}
+                            step={1}
+                            value={faceThreshold * 100}
+                            onChange={(e) => handleThresholdChange(Number(e.target.value) / 100)}
+                            className="flex-1"
+                          />
+                          <span
+                            className="text-xs font-mono px-1.5 py-0.5 w-10 text-center"
+                            style={{
+                              color: '#ff00ff',
+                              backgroundColor: 'rgba(255, 0, 255, 0.1)',
+                              border: '1px solid rgba(255, 0, 255, 0.3)',
+                              borderRadius: '2px',
+                            }}
+                          >
+                            {(faceThreshold * 100).toFixed(0)}%
+                          </span>
+                        </div>
+
+                        {/* Match counter */}
+                        {totalFaceMatches > 0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-lg font-bold font-mono" style={{ color: '#ff00ff' }}>{totalFaceMatches}</span>
+                            <span className="text-xs text-gray-500 uppercase tracking-wider font-body">face matches found</span>
+                          </div>
+                        )}
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>

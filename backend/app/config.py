@@ -60,6 +60,12 @@ class Settings(BaseSettings):
     snapshot_max_per_request: int = 50
     snapshot_min_confidence: float = 0.50
 
+    # Face recognition settings (FIND SUBJECT)
+    face_recognition_model: str = "ArcFace"
+    face_detector_backend: str = "mtcnn"
+    face_default_threshold: float = 0.55
+    face_reference_directory: str = "static/face_ref"
+
     # Logging
     log_level: str = "INFO"
     log_file: str = "../logs/app.log"

@@ -10,6 +10,7 @@ import time
 from app.config import settings
 from app.api.routes import router
 from app.api.gallery_routes import router as gallery_router
+from app.api.face_routes import router as face_router
 from app.models.database import init_db
 from app.utils.logger import setup_logging
 
@@ -81,6 +82,7 @@ app.mount("/static", SafeStaticFiles(directory="static", html=True), name="stati
 # Include API routes
 app.include_router(router, prefix="/api", tags=["Detection"])
 app.include_router(gallery_router, prefix="/api/gallery", tags=["Gallery"])
+app.include_router(face_router, prefix="/api/face", tags=["Face Recognition"])
 
 # Initialize database on startup
 @app.on_event("startup")
